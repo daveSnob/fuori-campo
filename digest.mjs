@@ -150,13 +150,45 @@ await Promise.all([
 // ---------- archivio: i feed mostrano solo le ultime 10-20 voci, quindi si conserva quanto visto nei giri precedenti ----------
 let archive = [];
 try { archive = JSON.parse(await readFile(ARCHIVE, 'utf8')).items || []; } catch {}
-const winFor = s => (cfg.windows[s] ?? cfg.windows[s.replace('-stampa', '')] ?? 48) * H;
+// i trailer restano in archivio più a lungo (trailerArchivio) per riempire le schede delle piattaforme con poche novità
+const winFor = s => (s === 'trailer' || s === 'trailer-arch' ?cfg.windows.trailerArchivio ?? cfg.windows.trailer : cfg.windows[s] ?? cfg.windows[s.replace('-stampa', '')] ?? 48) * H;
 const byLink = new Map();
 for (const it of archive) byLink.set(it.link, it);
 for (const it of fresh) {
   const prev = byLink.get(it.link);
   byLink.set(it.link, { ...it, seen: prev?.seen || NOW, ts: prev && it.ts === NOW ? prev.ts : it.ts });
 }
+// ---------- ripiego per le piattaforme con meno di minTrailerPiattaforma trailer: ricerca "trailer" nel canale YouTube ----------
+// il feed RSS espone solo gli ultimi 15 video; la ricerca ne dà ~30 con data relativa ("3w ago"), quindi approssimata
+const MIN_T = cfg.minTrailerPiattaforma ?? 10;
+const platOfCh = new Map(cfg.youtubeTrailers.filter(c => c.platform).map(c => [c.name, c.platform]));
+const haveT = {};
+for (const it of byLink.values()) if (/^trailer(-arch)?$/.test(it.section) && NOW - it.ts < winFor('trailer') && platOfCh.has(it.src)) haveT[platOfCh.get(it.src)] = (haveT[platOfCh.get(it.src)] || 0) + 1;
+const REL = { s: 1 / 3600, m: 1 / 60, min: 1 / 60, h: 1, d: 24, w: 168, mo: 720, y: 8760 };
+function relTs(txt) {
+  const m = (txt || '').match(/(\d+)\s*(mo|min|[smhdwy])\w*\s+ago/i);
+  return m ? NOW - Number(m[1]) * REL[m[2].toLowerCase()] * H : 0;
+}
+async function ytSearch(id) {
+  const r = await fetch(`https://www.youtube.com/channel/${id}/search?query=trailer`, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36', 'Accept-Language': 'en-US,en;q=0.9', Cookie: 'CONSENT=YES+1; SOCS=CAI' }, signal: AbortSignal.timeout(25000) });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const m = (await r.text()).match(/var ytInitialData = (\{[\s\S]*?\});<\/script>/);
+  if (!m) throw new Error('pagina senza dati');
+  const out = [];
+  (function walk(o) { if (!o || typeof o !== 'object') return; if (o.videoRenderer) { const v = o.videoRenderer; out.push({ vid: v.videoId, title: v.title?.runs?.[0]?.text || '', when: v.publishedTimeText?.simpleText || '' }); } for (const k in o) walk(o[k]); })(JSON.parse(m[1]));
+  return out;
+}
+await Promise.all(cfg.youtubeTrailers.filter(c => c.platform && (haveT[c.platform] || 0) < MIN_T).map(async ch => {
+  try {
+    for (const v of await ytSearch(ch.id)) {
+      const link = `https://www.youtube.com/watch?v=${v.vid}`;
+      const ts = relTs(v.when);
+      if (byLink.has(link) || !ts || NOW - ts > winFor('trailer') || !isTrailerVideo(v.title, '')) continue;
+      byLink.set(link, { src: ch.name, lang: ch.lang, section: 'trailer-arch', where: ch.where, vid: v.vid, title: v.title, link, ts, ex: '', approx: true, seen: NOW });
+    }
+  } catch (e) { status.push({ name: ch.name + ' (ricerca YouTube)', ok: false, err: String(e.message || e) }); }
+}));
+
 const all = [...byLink.values()].filter(it => NOW - it.ts < winFor(it.section) && it.ts <= NOW + H);
 await writeFile(ARCHIVE, JSON.stringify({ at: NOW, items: all }));
 
@@ -168,13 +200,15 @@ const pick = (s, max) => items.filter(i => i.section === s).slice(0, max ?? 999)
 // ---------- render ----------
 const h = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const fmt = new Intl.DateTimeFormat('it-IT', { timeZone: 'Europe/Rome', weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+const fmtDay = new Intl.DateTimeFormat('it-IT', { timeZone: 'Europe/Rome', day: 'numeric', month: 'short' });
 const fmtLong = new Intl.DateTimeFormat('it-IT', { timeZone: 'Europe/Rome', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 const isNew = it => it.ts && NOW - it.ts < cfg.newHours * H;
 const slug = s => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 const LANG = { it: 'IT', en: 'EN', fr: 'FR' };
 const M = cfg.maxPerSection;
 
-const trailers = pick('trailer');
+const allTrailers = items.filter(i => i.section === 'trailer' || i.section === 'trailer-arch');
+const trailers = allTrailers.filter(t => t.section === 'trailer' && NOW - t.ts < cfg.windows.trailer * H); // "della settimana": solo date esatte dai feed
 const tCinema = trailers.filter(t => t.where === 'cinema');
 const tStream = trailers.filter(t => t.where === 'streaming');
 const tPress = pick('trailer-stampa', 40);
@@ -196,9 +230,14 @@ const platData = PLATFORMS.map(p => ({
   ...p,
   trailers: trailers.filter(t => t.plat === p.id),
   allNews: items.filter(i => i.plat === p.id && platNewsSections.has(i.section)),
-})).map(p => ({ ...p, news: p.allNews.slice(0, 40) })).filter(p => p.trailers.length || p.news.length);
+})).map(p => ({
+  ...p,
+  news: p.allNews.slice(0, 40),
+  // regola del minimo: se le novità della settimana sono meno di minTrailerPiattaforma, si aggiungono i trailer precedenti più recenti
+  older: allTrailers.filter(t => t.plat === p.id && !p.trailers.includes(t)).slice(0, Math.max(0, (cfg.minTrailerPiattaforma ?? 10) - p.trailers.length)),
+})).filter(p => p.trailers.length || p.older.length || p.news.length);
 // il numero accanto al titolo della sezione conta solo i trailer; le schede mostrano trailer e notizie separati
-const platCount = platData.reduce((n, p) => n + p.trailers.length, 0);
+const platCount = platData.reduce((n, p) => n + p.trailers.length + p.older.length, 0);
 
 const SECTIONS = [
   { id: 'trailer', title: 'Trailer della settimana', sub: 'Trailer e teaser ufficiali degli ultimi 7 giorni, dai canali di studi, distributori italiani e piattaforme', count: trailers.length },
@@ -224,7 +263,7 @@ function card(it, images) {
   return `<li class="card" data-src="${h(slug(it.src))}"${isNew(it) ? ' data-new' : ''}>
   <a href="${h(it.link)}" target="_blank" rel="noopener"><span class="thumb">${thumb}${isNew(it) ? '<span class="pill solid">nuovo</span>' : ''}</span>
   <span class="ct">${h(cleanTrailerTitle(it.title))}</span></a>
-  <span class="cm"><b>${h(it.src)}</b> · ${LANG[it.lang]} · ${h(fmt.format(it.ts))}</span>
+  <span class="cm"><b>${h(it.src)}</b> · ${LANG[it.lang]} · ${it.approx ? `<span title="data approssimativa">≈ ${h(fmtDay.format(it.ts))}</span>` : h(fmt.format(it.ts))}</span>
 </li>`;
 }
 const vrow = (it, images) => `<li class="vr" data-src="${h(slug(it.src))}"${isNew(it) ? ' data-new' : ''}>
@@ -247,11 +286,12 @@ function section(s, images) {
 <div id="t-press" class="tp" hidden>${list(tPress)}</div>`;
   } else if (s.id === 'piattaforme') {
     inner = platData.length ? `<div class="tabs plat" role="tablist" aria-label="Piattaforma" data-group="plat">
-${platData.map((p, i) => `  <button type="button" role="tab" data-tab="p-${p.id}" aria-selected="${i ? 'false' : 'true'}">${h(p.name)} <span class="n" title="${p.trailers.length} trailer · ${p.allNews.length} notizie">▶ ${p.trailers.length} · ${p.allNews.length}</span></button>`).join('\n')}
+${platData.map((p, i) => `  <button type="button" role="tab" data-tab="p-${p.id}" aria-selected="${i ? 'false' : 'true'}">${h(p.name)} <span class="n" title="${p.trailers.length + p.older.length} trailer · ${p.allNews.length} notizie">▶ ${p.trailers.length + p.older.length} · ${p.allNews.length}</span></button>`).join('\n')}
 </div>
 ${platData.map((p, i) => `<div id="p-${p.id}" class="tp"${i ? ' hidden' : ''}>
-  <h3 class="sub">Trailer delle novità <span class="n">${p.trailers.length}</span></h3>
-  ${grid(p.trailers, images)}
+  <h3 class="sub">Trailer delle novità <span class="n">${p.trailers.length}${p.older.length ? ` + ${p.older.length} precedenti` : ''}</span></h3>
+  ${p.trailers.length ? grid(p.trailers, images) : '<p class="empty">Nessun trailer negli ultimi 7 giorni.</p>'}
+  ${p.older.length ? `<p class="older">Precedenti, per arrivare ad almeno ${cfg.minTrailerPiattaforma ?? 10}</p>${grid(p.older, images)}` : ''}
   <h3 class="sub">Notizie, uscite e rumor <span class="n">${p.news.length < p.allNews.length ? `${p.news.length} più recenti di ${p.allNews.length}` : p.news.length}</span></h3>
   ${list(p.news)}
 </div>`).join('\n')}` : '<p class="empty">Niente sulle piattaforme in questa finestra.</p>';
@@ -339,6 +379,7 @@ ul{list-style:none;margin:0;padding:0}
 .tabs.plat button{flex:none;white-space:nowrap}
 h3.sub{font:400 22px/1 var(--display);text-transform:uppercase;letter-spacing:.02em;margin:22px 0 12px;display:flex;gap:8px;align-items:baseline}
 .tp>h3.sub:first-child{margin-top:6px}
+.older{font:500 12px/1 var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:26px 0 12px;padding-top:14px;border-top:1px dashed var(--rule)}
 .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:22px 18px}
 .card{min-width:0}
 .card a{text-decoration:none;display:grid;gap:8px}

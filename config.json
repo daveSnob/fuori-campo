@@ -7,8 +7,10 @@
     "recensioni": 168,
     "uscite": 168,
     "approfondimenti": 96,
-    "trailer": 168
+    "trailer": 168,
+    "trailerArchivio": 8760
   },
+  "minTrailerPiattaforma": 10,
   "maxPerSection": {
     "notizie": 150,
     "rumor": 120,
