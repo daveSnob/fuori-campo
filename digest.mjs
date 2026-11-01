@@ -461,6 +461,9 @@ ${SECTIONS.map(s => section(s, images)).join('\n')}
     groups.forEach(function(g){
       var bs=g.querySelectorAll('button[data-tab]'), cur=tabs[g.dataset.group];
       if(!g.querySelector('button[data-tab="'+cur+'"]'))cur=bs[0].dataset.tab; // scheda salvata non più presente
+      // con un filtro attivo, se la scheda aperta è rimasta vuota si mostra la prima che ha voci (senza cambiare quella ricordata)
+      var has=function(id){return [].some.call(document.getElementById(id).querySelectorAll(ITEMS),function(li){return !li.hidden})};
+      if(filtering&&!has(cur)){var alt=[].filter.call(bs,function(b){return has(b.dataset.tab)})[0];if(alt)cur=alt.dataset.tab}
       bs.forEach(function(b){var on=b.dataset.tab===cur;b.setAttribute('aria-selected',on?'true':'false');document.getElementById(b.dataset.tab).hidden=!on});
     });
     save();
