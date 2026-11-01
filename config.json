@@ -378,6 +378,115 @@
       "id": "UCeq6w4jMTzMeteQmcozBgIA",
       "where": "cinema",
       "platform": "mubi"
+    },
+    {
+      "name": "Marvel Italia",
+      "lang": "it",
+      "id": "UClssoj08grgttJtZhsbuGRw",
+      "where": "cinema"
+    },
+    {
+      "name": "Disney Italia",
+      "lang": "it",
+      "id": "UCBH4HCPqGYZ0Yr6peYP0yag",
+      "where": "cinema"
+    },
+    {
+      "name": "Paramount Pictures Italia",
+      "lang": "it",
+      "id": "UCAK0nfddPamAko4j1YOlkgA",
+      "where": "cinema"
+    },
+    {
+      "name": "20th Century Studios Italia",
+      "lang": "it",
+      "id": "UCYcreT4_hsBN-OqU8P36lRw",
+      "where": "cinema"
+    },
+    {
+      "name": "Eagle Pictures",
+      "lang": "it",
+      "id": "UCPqpcV7Nup2R10KOKdf25hA",
+      "where": "cinema"
+    },
+    {
+      "name": "Medusa Film",
+      "lang": "it",
+      "id": "UCuDqeGdhlLCmPLWAeZriz9w",
+      "where": "cinema"
+    },
+    {
+      "name": "BIM Distribuzione",
+      "lang": "it",
+      "id": "UCZtTYguRFxjn3ixlD_LAIhA",
+      "where": "cinema"
+    },
+    {
+      "name": "Fandango",
+      "lang": "it",
+      "id": "UCOgLJmt2kTz7WyyP8fNsuQA",
+      "where": "cinema"
+    },
+    {
+      "name": "Academy Two",
+      "lang": "it",
+      "id": "UCafq3DLHLi6KlvW_gHzvtnw",
+      "where": "cinema"
+    },
+    {
+      "name": "PiperFilm",
+      "lang": "it",
+      "id": "UC8IZGhNDmoqldaYQa1DfglA",
+      "where": "cinema"
+    },
+    {
+      "name": "Notorious Pictures",
+      "lang": "it",
+      "id": "UCPtac2zD4xBEEstyBmnEHXg",
+      "where": "cinema"
+    },
+    {
+      "name": "Adler Entertainment",
+      "lang": "it",
+      "id": "UCBHRv4ZWol_TgNOvF-xa79g",
+      "where": "cinema"
+    },
+    {
+      "name": "Leone Film Group",
+      "lang": "it",
+      "id": "UCDGQFx6YiAF0s7HssXm6hOg",
+      "where": "cinema"
+    },
+    {
+      "name": "Nexo Studios",
+      "lang": "it",
+      "id": "UCeFautROnN7evdkwrsBfNZw",
+      "where": "cinema"
+    },
+    {
+      "name": "Wanted Cinema",
+      "lang": "it",
+      "id": "UCZZwY7D-D8NgArjmRH8yjYw",
+      "where": "cinema"
+    },
+    {
+      "name": "Plaion Pictures Italia",
+      "lang": "it",
+      "id": "UCYo8IZPzSjJ8idSNkYhYdMw",
+      "where": "cinema"
+    },
+    {
+      "name": "Movies Inspired",
+      "lang": "it",
+      "id": "UCNNc0KOiY5rN365iPlrHc_w",
+      "where": "cinema"
+    },
+    {
+      "name": "Paramount+ Italia",
+      "lang": "it",
+      "id": "UCgw3bg9bEQBg3OW6ERQwuWw",
+      "where": "streaming",
+      "platform": "paramount"
     }
   ],
   "blockWords": [],
