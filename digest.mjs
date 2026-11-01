@@ -351,8 +351,13 @@ nav.toc a.top{margin-left:auto;font-family:var(--mono);font-weight:500;backgroun
 .sec,.mast{scroll-margin-top:64px}
 .filters{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:10px 0 0;font:400 12px/1 var(--mono);color:var(--muted)}
 .filters button{font:500 12px/1 var(--mono);color:var(--ink);background:transparent;border:1px solid var(--rule);border-radius:4px;padding:6px 8px;cursor:pointer}
-.filters button[aria-pressed="false"]{color:var(--muted);text-decoration:line-through;opacity:.6}
+/* filtro "mostra solo": le testate selezionate sono piene; con nessuna selezionata si vede tutto */
+.filters button:hover{border-color:var(--ink)}
+.filters button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--paper)}
 .filters button.only[aria-pressed="true"]{background:var(--hot);border-color:var(--hot);color:var(--paper)}
+.filters button.reset{border-style:dashed;color:var(--accent)}
+.fnote{margin:14px 0 0;font:400 13px/1.4 var(--mono);color:var(--muted)}
+
 .sec{margin-top:48px}
 .sh{display:grid;grid-template-columns:auto auto 1fr;align-items:baseline;gap:4px 12px;border-bottom:1px solid var(--ink);padding-bottom:8px}
 .sh h2{font:400 42px/1 var(--display);text-transform:uppercase;margin:0;text-wrap:balance}
@@ -417,7 +422,8 @@ footer .ko{color:var(--hot)}
   <p class="stats"><span>Aggiornato <b>${h(fmtLong.format(NOW))}</b></span><span><b>${trailers.length}</b> trailer</span><span><b>${rumor.length}</b> rumor</span><span><b>${newCount}</b> novità nelle ultime ${cfg.newHours} ore</span><span><b>${ok.length}</b>/${status.length} fonti raggiunte</span></p>
 </header>
 <nav class="toc" aria-label="Sezioni">${SECTIONS.map(s => `<a href="#${s.id}">${h(s.title)}</a>`).join('')}<a class="top" href="#top" aria-label="Torna su">↑ su</a></nav>
-<div class="filters" role="group" aria-label="Filtra per fonte"><span>Testate:</span>${sources.map(s => `<button type="button" data-src="${slug(s)}" aria-pressed="true">${h(s)}</button>`).join('')}<button type="button" id="f-onlynew" class="only" aria-pressed="false">solo nuovi</button></div>
+<div class="filters" role="group" aria-label="Mostra solo le testate selezionate"><span>Mostra solo:</span>${sources.map(s => `<button type="button" data-src="${slug(s)}" aria-pressed="false">${h(s)}</button>`).join('')}<button type="button" id="f-onlynew" class="only" aria-pressed="false">solo nuovi</button><button type="button" id="f-all" class="reset" hidden>tutte le fonti</button></div>
+<p class="fnote" id="fnote" hidden></p>
 ${SECTIONS.map(s => section(s, images)).join('\n')}
 <footer>
   <p>Fonti raggiunte: ${ok.filter(s => !s.name.endsWith('(YouTube)')).map(s => `${h(s.name)} (${s.n})`).join(' · ')}</p>
@@ -428,14 +434,30 @@ ${SECTIONS.map(s => section(s, images)).join('\n')}
 </div>
 <script>
 (function(){
-  var KEY='fuoricampo-filters', off={}, onlyNew=false, tabs={};
-  try{var s=JSON.parse(localStorage.getItem(KEY)||'{}');off=s.off||{};onlyNew=!!s.onlyNew;tabs=s.tabs||{}}catch(e){}
-  var btns=document.querySelectorAll('.filters button[data-src]'), nb=document.getElementById('f-onlynew'), groups=document.querySelectorAll('.tabs[data-group]');
-  function save(){try{localStorage.setItem(KEY,JSON.stringify({off:off,onlyNew:onlyNew,tabs:tabs}))}catch(e){}}
+  // filtro "mostra solo": sel = testate scelte; vuoto = tutte. Con un filtro attivo spariscono anche le sezioni rimaste vuote.
+  var KEY='fuoricampo-filters', sel={}, onlyNew=false, tabs={}, ITEMS='.it,.vr,.card';
+  try{var s=JSON.parse(localStorage.getItem(KEY)||'{}');sel=s.sel||{};onlyNew=!!s.onlyNew;tabs=s.tabs||{}}catch(e){}
+  var btns=document.querySelectorAll('.filters button[data-src]'), nb=document.getElementById('f-onlynew'), all=document.getElementById('f-all'), note=document.getElementById('fnote'), groups=document.querySelectorAll('.tabs[data-group]');
+  btns.forEach(function(b){if(sel[b.dataset.src])sel[b.dataset.src]=b.textContent});
+  for(var k in sel)if(!document.querySelector('.filters button[data-src="'+k+'"]'))delete sel[k]; // testata non più presente
+  function save(){try{localStorage.setItem(KEY,JSON.stringify({sel:sel,onlyNew:onlyNew,tabs:tabs}))}catch(e){}}
   function apply(){
-    btns.forEach(function(b){b.setAttribute('aria-pressed',off[b.dataset.src]?'false':'true')});
+    var picked=Object.keys(sel), filtering=picked.length>0||onlyNew;
+    btns.forEach(function(b){b.setAttribute('aria-pressed',sel[b.dataset.src]?'true':'false')});
     nb.setAttribute('aria-pressed',onlyNew?'true':'false');
-    document.querySelectorAll('.it,.vr,.card').forEach(function(li){li.hidden=!!off[li.dataset.src]||(onlyNew&&!li.hasAttribute('data-new'))});
+    all.hidden=!picked.length;
+    document.querySelectorAll(ITEMS).forEach(function(li){li.hidden=(picked.length&&!sel[li.dataset.src])||(onlyNew&&!li.hasAttribute('data-new'))});
+    document.querySelectorAll('section.sec').forEach(function(sec){
+      var show=!filtering||[].some.call(sec.querySelectorAll(ITEMS),function(li){return !li.hidden});
+      sec.hidden=!show;
+      var a=document.querySelector('nav.toc a[href="#'+sec.id+'"]'); if(a)a.hidden=!show;
+    });
+    note.hidden=!picked.length;
+    if(picked.length){
+      var seen={}; // la stessa notizia può comparire anche nelle schede delle piattaforme: si conta una volta
+      document.querySelectorAll('.it:not([hidden]) a,.vr:not([hidden]) a,.card:not([hidden]) a').forEach(function(a){seen[a.href]=1});
+      note.textContent='Mostro solo '+picked.map(function(k){return sel[k]}).join(', ')+(onlyNew?' · solo nuovi':'')+': '+Object.keys(seen).length+' voci. Tocca di nuovo una testata per toglierla, o «tutte le fonti».';
+    }
     groups.forEach(function(g){
       var bs=g.querySelectorAll('button[data-tab]'), cur=tabs[g.dataset.group];
       if(!g.querySelector('button[data-tab="'+cur+'"]'))cur=bs[0].dataset.tab; // scheda salvata non più presente
@@ -443,8 +465,9 @@ ${SECTIONS.map(s => section(s, images)).join('\n')}
     });
     save();
   }
-  btns.forEach(function(b){b.addEventListener('click',function(){off[b.dataset.src]=!off[b.dataset.src];if(!off[b.dataset.src])delete off[b.dataset.src];apply()})});
+  btns.forEach(function(b){b.addEventListener('click',function(){if(sel[b.dataset.src])delete sel[b.dataset.src];else sel[b.dataset.src]=b.textContent;apply()})});
   nb.addEventListener('click',function(){onlyNew=!onlyNew;apply()});
+  all.addEventListener('click',function(){sel={};apply()});
   groups.forEach(function(g){g.querySelectorAll('button[data-tab]').forEach(function(b){b.addEventListener('click',function(){tabs[g.dataset.group]=b.dataset.tab;apply()})})});
   apply();
   // menu fisso: evidenzia la sezione in vista e la tiene visibile nella barra
