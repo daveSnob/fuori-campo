@@ -1,0 +1,348 @@
+{
+  "siteUrl": "https://davesnob.github.io/fuori-campo/",
+  "newHours": 6,
+  "windows": {
+    "notizie": 48,
+    "rumor": 168,
+    "recensioni": 168,
+    "uscite": 168,
+    "approfondimenti": 96,
+    "trailer": 168
+  },
+  "maxPerSection": {
+    "notizie": 150,
+    "rumor": 120,
+    "recensioni": 80,
+    "uscite": 40,
+    "approfondimenti": 60
+  },
+  "feeds": [
+    {
+      "name": "The Hollywood Reporter",
+      "lang": "en",
+      "url": "https://www.hollywoodreporter.com/c/movies/feed/",
+      "pages": 3
+    },
+    {
+      "name": "Deadline",
+      "lang": "en",
+      "url": "https://deadline.com/v/film/feed/",
+      "pages": 4
+    },
+    {
+      "name": "Variety",
+      "lang": "en",
+      "url": "https://variety.com/v/film/feed/",
+      "pages": 3
+    },
+    {
+      "name": "IndieWire",
+      "lang": "en",
+      "url": "https://www.indiewire.com/feed/",
+      "pages": 2
+    },
+    {
+      "name": "TheWrap",
+      "lang": "en",
+      "url": "https://www.thewrap.com/category/movies/feed/",
+      "pages": 2
+    },
+    {
+      "name": "Collider",
+      "lang": "en",
+      "url": "https://collider.com/feed/"
+    },
+    {
+      "name": "/Film",
+      "lang": "en",
+      "url": "https://www.slashfilm.com/feed/"
+    },
+    {
+      "name": "The Playlist",
+      "lang": "en",
+      "url": "https://theplaylist.net/feed/"
+    },
+    {
+      "name": "JoBlo",
+      "lang": "en",
+      "url": "https://www.joblo.com/feed/"
+    },
+    {
+      "name": "FirstShowing",
+      "lang": "en",
+      "url": "https://www.firstshowing.net/feed/"
+    },
+    {
+      "name": "Bleeding Cool",
+      "lang": "en",
+      "url": "https://bleedingcool.com/movies/feed/"
+    },
+    {
+      "name": "What's on Netflix",
+      "lang": "en",
+      "url": "https://whats-on-netflix.com/feed/"
+    },
+    {
+      "name": "World of Reel",
+      "lang": "en",
+      "url": "https://www.worldofreel.com/blog?format=rss"
+    },
+    {
+      "name": "The InSneider",
+      "lang": "en",
+      "url": "https://rss.beehiiv.com/feeds/nZyXiufl4f.xml",
+      "kind": "rumor"
+    },
+    {
+      "name": "Cosmic Book News",
+      "lang": "en",
+      "url": "https://cosmicbook.news/feed",
+      "onlyRumor": true
+    },
+    {
+      "name": "BadTaste",
+      "lang": "it",
+      "url": "https://www.badtaste.it/feed/",
+      "pages": 2
+    },
+    {
+      "name": "ScreenWeek",
+      "lang": "it",
+      "url": "https://www.screenweek.it/feed"
+    },
+    {
+      "name": "Ciak",
+      "lang": "it",
+      "url": "https://www.ciakmagazine.it/feed/"
+    },
+    {
+      "name": "Cineblog",
+      "lang": "it",
+      "url": "https://www.cineblog.it/feed"
+    },
+    {
+      "name": "Cineuropa",
+      "lang": "it",
+      "url": "https://cineuropa.org/it/rss/"
+    }
+  ],
+  "youtubeRumor": [
+    {
+      "name": "John Campea",
+      "lang": "en",
+      "id": "UCYyDbdaja1UDNdFSwUrYVGA"
+    },
+    {
+      "name": "Grace Randolph",
+      "lang": "en",
+      "id": "UCAXR2zenCwvRIyQd9ydtfaA"
+    }
+  ],
+  "youtubeTrailers": [
+    {
+      "name": "Universal Pictures",
+      "lang": "en",
+      "id": "UCq0OueAsdxH6b8nyAspwViw",
+      "where": "cinema"
+    },
+    {
+      "name": "Warner Bros.",
+      "lang": "en",
+      "id": "UCjmJDM5pRKbUlVIzDYYWb6g",
+      "where": "cinema"
+    },
+    {
+      "name": "Sony Pictures",
+      "lang": "en",
+      "id": "UCz97F7dMxBNOfGYu3rx8aCw",
+      "where": "cinema"
+    },
+    {
+      "name": "Paramount Pictures",
+      "lang": "en",
+      "id": "UCF9imwPMSGz4Vq1NiTWCC7g",
+      "where": "cinema"
+    },
+    {
+      "name": "20th Century Studios",
+      "lang": "en",
+      "id": "UC2-BeLxzUBSs0uSrmzWhJuQ",
+      "where": "cinema"
+    },
+    {
+      "name": "Disney",
+      "lang": "en",
+      "id": "UC_5niPa-d35gg88HaS7RrIw",
+      "where": "cinema"
+    },
+    {
+      "name": "Marvel",
+      "lang": "en",
+      "id": "UCvC4D8onUfXzvjTOM-dBfEA",
+      "where": "cinema"
+    },
+    {
+      "name": "Pixar",
+      "lang": "en",
+      "id": "UC_IRYSp4auq7hKLvziWVH6w",
+      "where": "cinema"
+    },
+    {
+      "name": "DC",
+      "lang": "en",
+      "id": "UCb5dKvci-z2VYkfZOIXx6qQ",
+      "where": "cinema"
+    },
+    {
+      "name": "Lionsgate",
+      "lang": "en",
+      "id": "UCJ6nMHaJPZvsJ-HmUmj1SeA",
+      "where": "cinema"
+    },
+    {
+      "name": "A24",
+      "lang": "en",
+      "id": "UCuPivVjnfNo4mb3Oog_frZg",
+      "where": "cinema"
+    },
+    {
+      "name": "NEON",
+      "lang": "en",
+      "id": "UCpy5dRhZd-JbZP4NsrnLt1w",
+      "where": "cinema"
+    },
+    {
+      "name": "Searchlight",
+      "lang": "en",
+      "id": "UCor9rW6PgxSQ9vUPWQdnaYQ",
+      "where": "cinema"
+    },
+    {
+      "name": "Focus Features",
+      "lang": "en",
+      "id": "UCU4SM3j_9TNWaSu8KdGV50g",
+      "where": "cinema"
+    },
+    {
+      "name": "MUBI",
+      "lang": "en",
+      "id": "UCb6-VM5UQ4Czj_d3m9EPGfg",
+      "where": "cinema"
+    },
+    {
+      "name": "Warner Bros. Italia",
+      "lang": "it",
+      "id": "UCIQ5iN8wzGkKyXJeX6eR50Q",
+      "where": "cinema"
+    },
+    {
+      "name": "Universal Pictures Italia",
+      "lang": "it",
+      "id": "UCnQxdwiEfaRCkbIxV873N0g",
+      "where": "cinema"
+    },
+    {
+      "name": "Sony Pictures Italia",
+      "lang": "it",
+      "id": "UCpLWRKkNwJOOj_NXDobKWUQ",
+      "where": "cinema"
+    },
+    {
+      "name": "01 Distribution",
+      "lang": "it",
+      "id": "UCVBlH5eoWuuaAhy5HprJE8w",
+      "where": "cinema"
+    },
+    {
+      "name": "Vision Distribution",
+      "lang": "it",
+      "id": "UC1HQ4tiKuLxm5xKnFl6iNsg",
+      "where": "cinema"
+    },
+    {
+      "name": "Lucky Red",
+      "lang": "it",
+      "id": "UCZ2NF3-EhyJ1LNYfQIvqJRg",
+      "where": "cinema"
+    },
+    {
+      "name": "I Wonder Pictures",
+      "lang": "it",
+      "id": "UC6QuM9iiz2kLk_MdFgL5IwQ",
+      "where": "cinema"
+    },
+    {
+      "name": "Teodora Film",
+      "lang": "it",
+      "id": "UCu_fiqMKhd5-UtIiGtlsRhQ",
+      "where": "cinema"
+    },
+    {
+      "name": "Netflix",
+      "lang": "en",
+      "id": "UCWOA1ZGywLbqmigxE4Qlvuw",
+      "where": "streaming"
+    },
+    {
+      "name": "Prime Video",
+      "lang": "en",
+      "id": "UCQJWtTnAHhEG5w4uN0udnUQ",
+      "where": "streaming"
+    },
+    {
+      "name": "Disney+",
+      "lang": "en",
+      "id": "UCIrgJInjLS2BhlHOMDW7v0g",
+      "where": "streaming"
+    },
+    {
+      "name": "HBO Max",
+      "lang": "en",
+      "id": "UCx-KWLTKlB83hDI6UKECtJQ",
+      "where": "streaming"
+    },
+    {
+      "name": "Apple TV",
+      "lang": "en",
+      "id": "UC1Myj674wRVXB9I4c6Hm5zA",
+      "where": "streaming"
+    },
+    {
+      "name": "Peacock",
+      "lang": "en",
+      "id": "UCPgMAS8woHJ_o_OZdTR7kcQ",
+      "where": "streaming"
+    },
+    {
+      "name": "Hulu",
+      "lang": "en",
+      "id": "UCE5mQnNl8Q4H2qcv4ikaXeA",
+      "where": "streaming"
+    },
+    {
+      "name": "Netflix Italia",
+      "lang": "it",
+      "id": "UCi_T2R1AzOCun4-PI4Or2ng",
+      "where": "streaming"
+    },
+    {
+      "name": "Prime Video Italia",
+      "lang": "it",
+      "id": "UCAaBGiU1C74gFgRcJTivj4w",
+      "where": "streaming"
+    },
+    {
+      "name": "Disney+ Italia",
+      "lang": "it",
+      "id": "UCF6y68V96phFE4BJPIlAu0g",
+      "where": "streaming"
+    },
+    {
+      "name": "Sky",
+      "lang": "en",
+      "id": "UCxw5iQs7tt4qbcLa31shZ7Q",
+      "where": "streaming"
+    }
+  ],
+  "blockWords": []
+}

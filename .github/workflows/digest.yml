@@ -1,0 +1,47 @@
+name: Aggiorna Fuori Campo
+
+on:
+  schedule:
+    - cron: "17 */4 * * *"   # ogni 4 ore (00:17, 04:17, 08:17… UTC)
+  workflow_dispatch:          # pulsante "Run workflow" per aggiornare a mano
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # archivio delle voci viste nei giri precedenti: i feed mostrano solo le ultime 10-20 voci
+      - uses: actions/cache@v4
+        with:
+          path: archivio.json
+          key: archivio-${{ github.run_id }}
+          restore-keys: archivio-
+      - run: node digest.mjs
+      - run: mkdir -p _site && cp fuori-campo.html _site/index.html
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
