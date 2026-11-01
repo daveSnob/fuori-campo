@@ -195,13 +195,14 @@ const platNewsSections = new Set(['uscite', 'notizie', 'rumor', 'recensioni', 'a
 const platData = PLATFORMS.map(p => ({
   ...p,
   trailers: trailers.filter(t => t.plat === p.id),
-  news: items.filter(i => i.plat === p.id && platNewsSections.has(i.section)).slice(0, 30),
-})).filter(p => p.trailers.length || p.news.length);
-const platCount = platData.reduce((n, p) => n + p.trailers.length + p.news.length, 0);
+  allNews: items.filter(i => i.plat === p.id && platNewsSections.has(i.section)),
+})).map(p => ({ ...p, news: p.allNews.slice(0, 40) })).filter(p => p.trailers.length || p.news.length);
+// il numero accanto al titolo della sezione conta solo i trailer; le schede mostrano trailer e notizie separati
+const platCount = platData.reduce((n, p) => n + p.trailers.length, 0);
 
 const SECTIONS = [
   { id: 'trailer', title: 'Trailer della settimana', sub: 'Trailer e teaser ufficiali degli ultimi 7 giorni, dai canali di studi, distributori italiani e piattaforme', count: trailers.length },
-  { id: 'piattaforme', title: 'Piattaforme', sub: 'Una scheda per servizio: trailer delle novità e notizie, uscite e rumor che lo riguardano', count: platCount },
+  { id: 'piattaforme', title: 'Piattaforme', sub: 'Una scheda per servizio: trailer delle novità e notizie, uscite e rumor che lo riguardano. Nelle schede: ▶ trailer · notizie. Il numero accanto al titolo conta i trailer', count: platCount },
   { id: 'uscite', title: 'In sala e in streaming', sub: 'Guide alle uscite della settimana: cinema e piattaforme', list: pick('uscite', M.uscite) },
   { id: 'rumor', title: 'Rumor', sub: 'Indiscrezioni, trattative, casting non confermati. Video di John Campea e Grace Randolph, scoop di World of Reel e The InSneider', count: rumor.length },
   { id: 'notizie', title: 'Notizie', sub: 'Casting, produzioni, box office, industria · ultime 48 ore', list: pick('notizie', M.notizie) },
@@ -246,12 +247,12 @@ function section(s, images) {
 <div id="t-press" class="tp" hidden>${list(tPress)}</div>`;
   } else if (s.id === 'piattaforme') {
     inner = platData.length ? `<div class="tabs plat" role="tablist" aria-label="Piattaforma" data-group="plat">
-${platData.map((p, i) => `  <button type="button" role="tab" data-tab="p-${p.id}" aria-selected="${i ? 'false' : 'true'}">${h(p.name)} <span class="n">${p.trailers.length + p.news.length}</span></button>`).join('\n')}
+${platData.map((p, i) => `  <button type="button" role="tab" data-tab="p-${p.id}" aria-selected="${i ? 'false' : 'true'}">${h(p.name)} <span class="n" title="${p.trailers.length} trailer · ${p.allNews.length} notizie">▶ ${p.trailers.length} · ${p.allNews.length}</span></button>`).join('\n')}
 </div>
 ${platData.map((p, i) => `<div id="p-${p.id}" class="tp"${i ? ' hidden' : ''}>
   <h3 class="sub">Trailer delle novità <span class="n">${p.trailers.length}</span></h3>
   ${grid(p.trailers, images)}
-  <h3 class="sub">Notizie, uscite e rumor <span class="n">${p.news.length}</span></h3>
+  <h3 class="sub">Notizie, uscite e rumor <span class="n">${p.news.length < p.allNews.length ? `${p.news.length} più recenti di ${p.allNews.length}` : p.news.length}</span></h3>
   ${list(p.news)}
 </div>`).join('\n')}` : '<p class="empty">Niente sulle piattaforme in questa finestra.</p>';
   } else if (s.id === 'rumor') {
