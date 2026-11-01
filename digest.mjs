@@ -182,8 +182,26 @@ const rumor = pick('rumor', M.rumor);
 const rumorVideo = rumor.filter(r => r.video);
 const rumorText = rumor.filter(r => !r.video);
 
+// ---------- piattaforme: canale/feed dedicato, altrimenti parole chiave (titolo; per i trailer anche la descrizione) ----------
+const PLATFORMS = (cfg.platforms || []).map(p => ({ ...p, re: new RegExp(p.match, 'i') }));
+const fixedPlat = new Map([...cfg.youtubeTrailers, ...cfg.feeds].filter(x => x.platform).map(x => [x.name, x.platform]));
+function platformOf(it) {
+  if (fixedPlat.has(it.src)) return fixedPlat.get(it.src);
+  const txt = it.section === 'trailer' ? it.title + ' ' + (it.ex || '') : it.title;
+  return PLATFORMS.find(p => p.re.test(txt))?.id || '';
+}
+for (const it of items) it.plat = platformOf(it);
+const platNewsSections = new Set(['uscite', 'notizie', 'rumor', 'recensioni', 'approfondimenti', 'trailer-stampa']);
+const platData = PLATFORMS.map(p => ({
+  ...p,
+  trailers: trailers.filter(t => t.plat === p.id),
+  news: items.filter(i => i.plat === p.id && platNewsSections.has(i.section)).slice(0, 30),
+})).filter(p => p.trailers.length || p.news.length);
+const platCount = platData.reduce((n, p) => n + p.trailers.length + p.news.length, 0);
+
 const SECTIONS = [
   { id: 'trailer', title: 'Trailer della settimana', sub: 'Trailer e teaser ufficiali degli ultimi 7 giorni, dai canali di studi, distributori italiani e piattaforme', count: trailers.length },
+  { id: 'piattaforme', title: 'Piattaforme', sub: 'Una scheda per servizio: trailer delle novità e notizie, uscite e rumor che lo riguardano', count: platCount },
   { id: 'uscite', title: 'In sala e in streaming', sub: 'Guide alle uscite della settimana: cinema e piattaforme', list: pick('uscite', M.uscite) },
   { id: 'rumor', title: 'Rumor', sub: 'Indiscrezioni, trattative, casting non confermati. Video di John Campea e Grace Randolph, scoop di World of Reel e The InSneider', count: rumor.length },
   { id: 'notizie', title: 'Notizie', sub: 'Casting, produzioni, box office, industria · ultime 48 ore', list: pick('notizie', M.notizie) },
@@ -197,7 +215,7 @@ function row(it) {
   <div class="body"><a class="t" href="${h(it.link)}" target="_blank" rel="noopener">${h(it.title)}</a>${it.ex ? `<p class="ex">${h(it.ex)}</p>` : ''}</div>
 </li>`;
 }
-const cleanTrailerTitle = t => t.replace(/\s*[|│]\s*(Netflix|Prime Video|Disney\+|HBO Max|Max|Apple TV\+?|Peacock|Hulu)(\s+Italia)?\s*$/i, '').trim();
+const cleanTrailerTitle = t => t.replace(/\s*[|│]\s*(Netflix|Prime Video|Disney\+|HBO Max|Max|Apple TV\+?|Peacock( Original)?|Hulu|Paramount\+|Sky|Searchlight Pictures)(\s+Italia)?\s*$/i, '').trim();
 function card(it, images) {
   const thumb = images
     ? `<img src="https://i.ytimg.com/vi/${h(it.vid)}/hqdefault.jpg" alt="" loading="lazy" width="480" height="360">`
@@ -218,7 +236,7 @@ const grid = (arr, images) => arr.length ? `<ul class="cards">${arr.map(t => car
 function section(s, images) {
   let inner, count = s.count ?? s.list?.length ?? 0;
   if (s.id === 'trailer') {
-    inner = `<div class="tabs" role="tablist" aria-label="Dove esce">
+    inner = `<div class="tabs" role="tablist" aria-label="Dove esce" data-group="trailer">
   <button type="button" role="tab" data-tab="t-cinema" aria-selected="true">Al cinema <span class="n">${tCinema.length}</span></button>
   <button type="button" role="tab" data-tab="t-stream" aria-selected="false">In streaming <span class="n">${tStream.length}</span></button>
   <button type="button" role="tab" data-tab="t-press" aria-selected="false">Dalla stampa <span class="n">${tPress.length}</span></button>
@@ -226,6 +244,16 @@ function section(s, images) {
 <div id="t-cinema" class="tp">${grid(tCinema, images)}</div>
 <div id="t-stream" class="tp" hidden>${grid(tStream, images)}</div>
 <div id="t-press" class="tp" hidden>${list(tPress)}</div>`;
+  } else if (s.id === 'piattaforme') {
+    inner = platData.length ? `<div class="tabs plat" role="tablist" aria-label="Piattaforma" data-group="plat">
+${platData.map((p, i) => `  <button type="button" role="tab" data-tab="p-${p.id}" aria-selected="${i ? 'false' : 'true'}">${h(p.name)} <span class="n">${p.trailers.length + p.news.length}</span></button>`).join('\n')}
+</div>
+${platData.map((p, i) => `<div id="p-${p.id}" class="tp"${i ? ' hidden' : ''}>
+  <h3 class="sub">Trailer delle novità <span class="n">${p.trailers.length}</span></h3>
+  ${grid(p.trailers, images)}
+  <h3 class="sub">Notizie, uscite e rumor <span class="n">${p.news.length}</span></h3>
+  ${list(p.news)}
+</div>`).join('\n')}` : '<p class="empty">Niente sulle piattaforme in questa finestra.</p>';
   } else if (s.id === 'rumor') {
     inner = `<div class="rumor-cols">
   <div><h3>Video <span class="n">${rumorVideo.length}</span></h3>${rumorVideo.length ? `<ul class="vlist">${rumorVideo.slice(0, 30).map(v => vrow(v, images)).join('')}</ul>` : '<p class="empty">Nessun video questa settimana.</p>'}</div>
@@ -272,9 +300,14 @@ img{max-width:100%;display:block}
 .mast .tag a{color:var(--accent)}
 .stats{display:flex;flex-wrap:wrap;gap:6px 18px;font:400 13px/1.4 var(--mono);color:var(--muted);margin:0}
 .stats b{color:var(--ink);font-weight:500}
-nav.toc{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0 6px}
-nav.toc a{font:600 14px/1 var(--body);text-decoration:none;padding:8px 12px;border:1px solid var(--rule);border-radius:999px;background:var(--chip)}
+/* menu fisso: resta in cima durante lo scorrimento, scorre in orizzontale se non ci sta */
+nav.toc{position:sticky;top:0;z-index:30;display:flex;flex-wrap:nowrap;gap:8px;align-items:center;margin:18px -16px 6px;padding:10px 16px;overflow-x:auto;scrollbar-width:none;background:var(--paper);border-bottom:1px solid var(--rule);box-shadow:0 6px 12px -10px rgba(0,0,0,.35)}
+nav.toc::-webkit-scrollbar{display:none}
+nav.toc a{flex:none;white-space:nowrap;font:600 14px/1 var(--body);text-decoration:none;padding:8px 12px;border:1px solid var(--rule);border-radius:999px;background:var(--chip)}
 nav.toc a:hover{border-color:var(--ink)}
+nav.toc a[aria-current="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+nav.toc a.top{margin-left:auto;font-family:var(--mono);font-weight:500;background:transparent}
+.sec,.mast{scroll-margin-top:64px}
 .filters{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:10px 0 0;font:400 12px/1 var(--mono);color:var(--muted)}
 .filters button{font:500 12px/1 var(--mono);color:var(--ink);background:transparent;border:1px solid var(--rule);border-radius:4px;padding:6px 8px;cursor:pointer}
 .filters button[aria-pressed="false"]{color:var(--muted);text-decoration:line-through;opacity:.6}
@@ -300,6 +333,11 @@ ul{list-style:none;margin:0;padding:0}
 .tabs button[aria-selected="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
 .tabs .n{font:500 12px/1 var(--mono);color:var(--accent);margin-left:4px}
 .tabs button[aria-selected="true"] .n{color:inherit;opacity:.75}
+.tabs.plat{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.tabs.plat::-webkit-scrollbar{display:none}
+.tabs.plat button{flex:none;white-space:nowrap}
+h3.sub{font:400 22px/1 var(--display);text-transform:uppercase;letter-spacing:.02em;margin:22px 0 12px;display:flex;gap:8px;align-items:baseline}
+.tp>h3.sub:first-child{margin-top:6px}
 .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:22px 18px}
 .card{min-width:0}
 .card a{text-decoration:none;display:grid;gap:8px}
@@ -331,12 +369,12 @@ footer .ko{color:var(--hot)}
 @media (prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
 </style>
 <div class="wrap">
-<header class="mast">
+<header class="mast" id="top">
   <p class="tag">Digest cinema personale · aggiornato ogni 4 ore${images ? '' : ` · <a href="${h(cfg.siteUrl)}" target="_blank" rel="noopener">versione sempre aggiornata, con anteprime</a>`}</p>
   <h1>Fuori <span>Campo</span></h1>
   <p class="stats"><span>Aggiornato <b>${h(fmtLong.format(NOW))}</b></span><span><b>${trailers.length}</b> trailer</span><span><b>${rumor.length}</b> rumor</span><span><b>${newCount}</b> novità nelle ultime ${cfg.newHours} ore</span><span><b>${ok.length}</b>/${status.length} fonti raggiunte</span></p>
 </header>
-<nav class="toc" aria-label="Sezioni">${SECTIONS.map(s => `<a href="#${s.id}">${h(s.title)}</a>`).join('')}</nav>
+<nav class="toc" aria-label="Sezioni">${SECTIONS.map(s => `<a href="#${s.id}">${h(s.title)}</a>`).join('')}<a class="top" href="#top" aria-label="Torna su">↑ su</a></nav>
 <div class="filters" role="group" aria-label="Filtra per fonte"><span>Testate:</span>${sources.map(s => `<button type="button" data-src="${slug(s)}" aria-pressed="true">${h(s)}</button>`).join('')}<button type="button" id="f-onlynew" class="only" aria-pressed="false">solo nuovi</button></div>
 ${SECTIONS.map(s => section(s, images)).join('\n')}
 <footer>
@@ -348,21 +386,43 @@ ${SECTIONS.map(s => section(s, images)).join('\n')}
 </div>
 <script>
 (function(){
-  var KEY='fuoricampo-filters', off={}, onlyNew=false, tab='t-cinema';
-  try{var s=JSON.parse(localStorage.getItem(KEY)||'{}');off=s.off||{};onlyNew=!!s.onlyNew;tab=s.tab||tab}catch(e){}
-  var btns=document.querySelectorAll('.filters button[data-src]'), nb=document.getElementById('f-onlynew'), tabs=document.querySelectorAll('.tabs button');
-  function save(){try{localStorage.setItem(KEY,JSON.stringify({off:off,onlyNew:onlyNew,tab:tab}))}catch(e){}}
+  var KEY='fuoricampo-filters', off={}, onlyNew=false, tabs={};
+  try{var s=JSON.parse(localStorage.getItem(KEY)||'{}');off=s.off||{};onlyNew=!!s.onlyNew;tabs=s.tabs||{}}catch(e){}
+  var btns=document.querySelectorAll('.filters button[data-src]'), nb=document.getElementById('f-onlynew'), groups=document.querySelectorAll('.tabs[data-group]');
+  function save(){try{localStorage.setItem(KEY,JSON.stringify({off:off,onlyNew:onlyNew,tabs:tabs}))}catch(e){}}
   function apply(){
     btns.forEach(function(b){b.setAttribute('aria-pressed',off[b.dataset.src]?'false':'true')});
     nb.setAttribute('aria-pressed',onlyNew?'true':'false');
     document.querySelectorAll('.it,.vr,.card').forEach(function(li){li.hidden=!!off[li.dataset.src]||(onlyNew&&!li.hasAttribute('data-new'))});
-    tabs.forEach(function(b){var on=b.dataset.tab===tab;b.setAttribute('aria-selected',on?'true':'false');document.getElementById(b.dataset.tab).hidden=!on});
+    groups.forEach(function(g){
+      var bs=g.querySelectorAll('button[data-tab]'), cur=tabs[g.dataset.group];
+      if(!g.querySelector('button[data-tab="'+cur+'"]'))cur=bs[0].dataset.tab; // scheda salvata non più presente
+      bs.forEach(function(b){var on=b.dataset.tab===cur;b.setAttribute('aria-selected',on?'true':'false');document.getElementById(b.dataset.tab).hidden=!on});
+    });
     save();
   }
   btns.forEach(function(b){b.addEventListener('click',function(){off[b.dataset.src]=!off[b.dataset.src];if(!off[b.dataset.src])delete off[b.dataset.src];apply()})});
   nb.addEventListener('click',function(){onlyNew=!onlyNew;apply()});
-  tabs.forEach(function(b){b.addEventListener('click',function(){tab=b.dataset.tab;apply()})});
+  groups.forEach(function(g){g.querySelectorAll('button[data-tab]').forEach(function(b){b.addEventListener('click',function(){tabs[g.dataset.group]=b.dataset.tab;apply()})})});
   apply();
+  // menu fisso: evidenzia la sezione in vista e la tiene visibile nella barra
+  var toc=document.querySelector('nav.toc'), links={};
+  toc.querySelectorAll('a[href^="#"]:not(.top)').forEach(function(a){links[a.getAttribute('href').slice(1)]=a});
+  function mark(id){
+    for(var k in links)links[k].removeAttribute('aria-current');
+    var a=links[id]; if(!a)return;
+    a.setAttribute('aria-current','true');
+    var l=a.offsetLeft-toc.offsetLeft, r=l+a.offsetWidth;
+    if(l<toc.scrollLeft||r>toc.scrollLeft+toc.clientWidth)toc.scrollTo({left:Math.max(0,l-24)});
+  }
+  function onScroll(){
+    var y=toc.getBoundingClientRect().bottom+24, cur='';
+    document.querySelectorAll('section.sec').forEach(function(sec){if(sec.getBoundingClientRect().top<=y)cur=sec.id});
+    mark(cur);
+  }
+  window.addEventListener('scroll',onScroll,{passive:true});
+  window.addEventListener('hashchange',onScroll);
+  onScroll();
 })();
 </script>
 `;

@@ -80,7 +80,8 @@
     {
       "name": "What's on Netflix",
       "lang": "en",
-      "url": "https://whats-on-netflix.com/feed/"
+      "url": "https://whats-on-netflix.com/feed/",
+      "platform": "netflix"
     },
     {
       "name": "World of Reel",
@@ -227,7 +228,8 @@
       "name": "MUBI",
       "lang": "en",
       "id": "UCb6-VM5UQ4Czj_d3m9EPGfg",
-      "where": "cinema"
+      "where": "cinema",
+      "platform": "mubi"
     },
     {
       "name": "Warner Bros. Italia",
@@ -281,68 +283,152 @@
       "name": "Netflix",
       "lang": "en",
       "id": "UCWOA1ZGywLbqmigxE4Qlvuw",
-      "where": "streaming"
+      "where": "streaming",
+      "platform": "netflix"
     },
     {
       "name": "Prime Video",
       "lang": "en",
       "id": "UCQJWtTnAHhEG5w4uN0udnUQ",
-      "where": "streaming"
+      "where": "streaming",
+      "platform": "prime"
     },
     {
       "name": "Disney+",
       "lang": "en",
       "id": "UCIrgJInjLS2BhlHOMDW7v0g",
-      "where": "streaming"
+      "where": "streaming",
+      "platform": "disney"
     },
     {
       "name": "HBO Max",
       "lang": "en",
       "id": "UCx-KWLTKlB83hDI6UKECtJQ",
-      "where": "streaming"
+      "where": "streaming",
+      "platform": "hbo"
     },
     {
       "name": "Apple TV",
       "lang": "en",
       "id": "UC1Myj674wRVXB9I4c6Hm5zA",
-      "where": "streaming"
+      "where": "streaming",
+      "platform": "apple"
     },
     {
       "name": "Peacock",
       "lang": "en",
       "id": "UCPgMAS8woHJ_o_OZdTR7kcQ",
-      "where": "streaming"
+      "where": "streaming",
+      "platform": "peacock"
     },
     {
       "name": "Hulu",
       "lang": "en",
       "id": "UCE5mQnNl8Q4H2qcv4ikaXeA",
-      "where": "streaming"
+      "where": "streaming",
+      "platform": "hulu"
     },
     {
       "name": "Netflix Italia",
       "lang": "it",
       "id": "UCi_T2R1AzOCun4-PI4Or2ng",
-      "where": "streaming"
+      "where": "streaming",
+      "platform": "netflix"
     },
     {
       "name": "Prime Video Italia",
       "lang": "it",
       "id": "UCAaBGiU1C74gFgRcJTivj4w",
-      "where": "streaming"
+      "where": "streaming",
+      "platform": "prime"
     },
     {
       "name": "Disney+ Italia",
       "lang": "it",
       "id": "UCF6y68V96phFE4BJPIlAu0g",
-      "where": "streaming"
+      "where": "streaming",
+      "platform": "disney"
     },
     {
       "name": "Sky",
       "lang": "en",
       "id": "UCxw5iQs7tt4qbcLa31shZ7Q",
-      "where": "streaming"
+      "where": "streaming",
+      "platform": "sky"
+    },
+    {
+      "name": "Paramount+",
+      "lang": "en",
+      "id": "UCrRttZIypNTA1Mrfwo745Sg",
+      "where": "streaming",
+      "platform": "paramount"
+    },
+    {
+      "name": "HBO Max Italia",
+      "lang": "it",
+      "id": "UC3IGvM9t5Cjj2WXp5fMwemQ",
+      "where": "streaming",
+      "platform": "hbo"
+    },
+    {
+      "name": "MUBI Italia",
+      "lang": "it",
+      "id": "UCeq6w4jMTzMeteQmcozBgIA",
+      "where": "cinema",
+      "platform": "mubi"
     }
   ],
-  "blockWords": []
+  "blockWords": [],
+  "platforms": [
+    {
+      "id": "netflix",
+      "name": "Netflix",
+      "match": "netflix"
+    },
+    {
+      "id": "prime",
+      "name": "Prime Video",
+      "match": "prime video|amazon prime|amazon mgm|amazon original|amazon studios"
+    },
+    {
+      "id": "apple",
+      "name": "Apple TV",
+      "match": "apple tv|apple original|apple studios"
+    },
+    {
+      "id": "hbo",
+      "name": "HBO Max",
+      "match": "hbo max|\bhbo\b"
+    },
+    {
+      "id": "disney",
+      "name": "Disney+",
+      "match": "disney+|disney plus|disneyplus"
+    },
+    {
+      "id": "sky",
+      "name": "Sky e NOW",
+      "match": "\bsky (atlantic|cinema|original|italia|tv|uk)\b|\bnow tv\b|\bsu now\b|sky original"
+    },
+    {
+      "id": "paramount",
+      "name": "Paramount+",
+      "match": "paramount+|paramount plus"
+    },
+    {
+      "id": "peacock",
+      "name": "Peacock",
+      "match": "peacock"
+    },
+    {
+      "id": "hulu",
+      "name": "Hulu",
+      "match": "\bhulu\b"
+    },
+    {
+      "id": "mubi",
+      "name": "MUBI",
+      "match": "\bmubi\b"
+    }
+  ]
 }
