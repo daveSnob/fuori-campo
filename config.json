@@ -487,6 +487,12 @@
       "id": "UCgw3bg9bEQBg3OW6ERQwuWw",
       "where": "streaming",
       "platform": "paramount"
+    },
+	{
+      "name": "A24",
+      "lang": "it",
+      "id": "UCuPivVjnfNo4mb3Oog_frZg",
+      "where": "cinema"
     }
   ],
   "blockWords": [],
