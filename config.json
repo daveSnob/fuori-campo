@@ -8,7 +8,8 @@
     "uscite": 168,
     "approfondimenti": 96,
     "trailer": 168,
-    "trailerArchivio": 8760
+    "trailerArchivio": 8760,
+    "focus": 720
   },
   "minTrailerPiattaforma": 10,
   "maxPerSection": {
@@ -487,12 +488,6 @@
       "id": "UCgw3bg9bEQBg3OW6ERQwuWw",
       "where": "streaming",
       "platform": "paramount"
-    },
-	{
-      "name": "A24",
-      "lang": "it",
-      "id": "UCuPivVjnfNo4mb3Oog_frZg",
-      "where": "cinema"
     }
   ],
   "blockWords": [],
@@ -546,6 +541,37 @@
       "id": "mubi",
       "name": "MUBI",
       "match": "\bmubi\b"
+    }
+  ],
+  "festival": [
+    {
+      "id": "torino",
+      "name": "Torino Film Festival",
+      "match": "torino film festival|\\btff\\s?\\d{0,2}\\b|torinofilmfest|festival di torino"
+    },
+    {
+      "id": "oscar",
+      "name": "Oscar",
+      "match": "\\boscars?\\b(?!-(winning|winner|nominated|nominee))|academy awards?|notte degli oscar"
+    },
+    {
+      "id": "afm",
+      "name": "AFM",
+      "match": "\\bafm\\b|american film market"
+    }
+  ],
+  "tracker": [
+    {
+      "name": "James Bond",
+      "match": "james bond|\\b007\\b|\\bbond (26|rumou?rs?|casting|actor|film|movie|role)\\b|next bond|nuovo bond"
+    },
+    {
+      "name": "X-Men",
+      "match": "x-men|\\bmutant[si]?\\b"
+    },
+    {
+      "name": "The Batman",
+      "match": "the batman|batman part ii|\\bbatman\\b"
     }
   ]
 }
