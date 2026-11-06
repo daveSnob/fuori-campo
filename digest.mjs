@@ -198,7 +198,42 @@ const isArticle = it => it.section !== 'trailer' && it.section !== 'trailer-arch
 const isFocus = it => isArticle(it) && FOCUS_RE.some(r => r.test(it.title));
 const inWindow = it => NOW - it.ts < winFor(it.section);
 const kept = [...byLink.values()].filter(it => it.ts <= NOW + H && (inWindow(it) || (isFocus(it) && NOW - it.ts < (cfg.windows.focus ?? 720) * H)));
-await writeFile(ARCHIVE, JSON.stringify({ at: NOW, items: kept }));
+// ---------- al cinema: film in sala in Italia secondo MYmovies (solo titolo, regia, genere, uscita, sale, distribuzione e link) ----------
+// Se MYmovies non risponde si riusa l'ultimo elenco scaricato, conservato nell'archivio.
+const MM_URL = 'https://www.mymovies.it/cinema/';
+function parseMyMovies(html) {
+  const txt = x => x ? decode(x).replace(/\s+/g, ' ').trim() : '';
+  const films = new Map();
+  for (const b of html.split('class="schedine-titolo"').slice(1)) {
+    const c = b.slice(0, 6000);
+    const t = c.match(/<a href="(https:\/\/www\.mymovies\.it\/film\/\d{4}\/[a-z0-9-]+\/)" title="([^"]+)"/);
+    if (!t) continue;
+    const d = c.match(/\?data=(\d{2})\/(\d{2})\/(\d{4})/);
+    films.set(t[1], {
+      title: txt(t[2]), link: t[1],
+      genre: txt((c.match(/<a title="Film [^"]*" href="https:\/\/www\.mymovies\.it\/film\/[a-z-]+\/">([^<]+)<\/a>/) || [])[1]),
+      regia: txt((c.match(/Un film di <a [^>]*>([^<]+)<\/a>/) || [])[1]),
+      uscita: d ? `${d[3]}-${d[2]}-${d[1]}` : '',
+      sale: +((c.match(/in <a [^>]*>\s*(\d+)\s+sal[ae]<\/a>/) || [])[1] || 0),
+      distr: txt((c.match(/Distribuzione <a [^>]*>([^<]+)<\/a>/) || [])[1]),
+    });
+  }
+  return [...films.values()];
+}
+let alCinema = null, alCinemaStale = false;
+try { alCinema = JSON.parse(await readFile(ARCHIVE, 'utf8')).alCinema || null; } catch {}
+try {
+  const r = await fetch(MM_URL, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36', 'Accept-Language': 'it-IT,it;q=0.9' }, signal: AbortSignal.timeout(25000) });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const films = parseMyMovies(await r.text());
+  if (films.length < 5) throw new Error(`pagina cambiata? solo ${films.length} film trovati`);
+  alCinema = { at: NOW, films };
+  status.push({ name: 'MYmovies', ok: true, n: films.length });
+} catch (e) {
+  alCinemaStale = !!alCinema;
+  status.push({ name: 'MYmovies', ok: false, err: String(e.message || e) + (alCinema ? ' (uso l\'elenco precedente)' : '') });
+}
+await writeFile(ARCHIVE, JSON.stringify({ at: NOW, items: kept, alCinema }));
 
 // ---------- deduplica ----------
 const STOP = new Set('the a an of to in for on and with at by from is are as its it s il lo la i gli le l un una uno di da del della dei delle degli e ed per con su nel nella al alla ai che new rumor rumour rumors rumours exclusive esclusiva report'.split(' '));
@@ -354,11 +389,6 @@ const calCinema = calendar.filter(c => c.where === 'cinema');
 const calStream = calendar.filter(c => c.where === 'streaming');
 const countdown = when => { const d = Math.round((when - TODAY) / 864e5); return d <= 0 ? 'oggi' : d === 1 ? 'domani' : `tra ${d} giorni`; };
 
-// ---------- box office: articoli dalle fonti già in uso; i numeri non ci sono, la classifica resta da collegare ----------
-const boxArticles = items.filter(i => isArticle(i) && /box office|incass[oi]|botteghino|cinetel/i.test(i.title)).slice(0, 20);
-const boxIt = boxArticles.filter(i => /\bitali|cinetel/i.test(i.title)); // conta il contenuto, non la lingua della testata
-const boxOther = boxArticles.filter(i => !boxIt.includes(i));
-
 // ---------- tracker casting: per ogni saga, voci confermate separate dai rumor ----------
 const CONFIRM_RE = /\b(cast as|joins|has joined|set to (star|play|direct|lead)|will (play|star)|lands?( the)? role|officially|confirm(ed|s)?|announce[sd]?|tapped to (play|star|direct)|is the new|named as|ufficiale|ufficialmente|confermat[oaie]|annunciat[oaie]|entra nel cast)\b/i;
 const TRACK = (cfg.tracker || []).map(t => {
@@ -368,30 +398,29 @@ const TRACK = (cfg.tracker || []).map(t => {
   return { ...t, id: slug(t.name), ok: list.filter(a => st(a) === 'ok'), rumor: list.filter(a => st(a) === 'rumor'), altro: list.filter(a => st(a) === 'altro'), n: list.length };
 }).filter(t => t.n);
 
+const cinemaFilms = (alCinema?.films || []).slice().sort((a, b) => b.sale - a.sale);
 const SECTIONS = [
   { id: 'trailer', title: 'Trailer della settimana', sub: 'Trailer e teaser ufficiali degli ultimi 7 giorni, dai canali di studi, distributori italiani e piattaforme', count: trailers.length },
+  { id: 'alcinema', title: 'Al cinema', sub: 'I film in sala in Italia questa settimana secondo MYmovies, dal più programmato', count: cinemaFilms.length },
   { id: 'date', title: 'Date da segnare', sub: 'Uscite italiane annunciate nei trailer dei distributori e delle piattaforme, in ordine di data', count: calendar.length },
   { id: 'piattaforme', title: 'Piattaforme', sub: 'Una scheda per servizio: trailer delle novità e notizie, uscite e rumor. Nelle schede: ▶ trailer · notizie. Il numero accanto al titolo conta i trailer', count: platCount },
   { id: 'uscite', title: 'In sala e in streaming', sub: 'Guide alle uscite della settimana: cinema e piattaforme', list: pick('uscite', M.uscite) },
-  { id: 'boxoffice', title: 'Box office Italia', sub: 'Classifica del weekend e film in sala', count: boxArticles.length },
   { id: 'rumor', title: 'Rumor', sub: 'Indiscrezioni, trattative, casting non confermati. Video di John Campea e Grace Randolph, scoop di World of Reel e The InSneider', count: rumor.length },
   { id: 'casting', title: 'Tracker casting', sub: `Le voci ricorrenti, saga per saga, ultimi ${Math.round((cfg.windows.focus ?? 720) / 24)} giorni: confermato e rumor tenuti separati`, count: TRACK.reduce((n, t) => n + t.n, 0) },
   { id: 'notizie', title: 'Notizie', sub: 'Casting, produzioni, box office, industria · ultime 48 ore', list: notFest('notizie').slice(0, M.notizie) },
   { id: 'festival', title: 'Festival e premi', sub: `Torino Film Festival, Oscar, AFM · ultimi ${Math.round((cfg.windows.focus ?? 720) / 24)} giorni`, count: festCount },
   { id: 'recensioni', title: 'Recensioni', sub: 'Critica dai trade e dalle riviste · ultimi 7 giorni', list: pick('recensioni', M.recensioni) },
   { id: 'approfondimenti', title: 'Approfondimenti', sub: 'Interviste, classifiche, analisi', list: notFest('approfondimenti').slice(0, M.approfondimenti) },
-  { id: 'watchlist', title: 'La mia watchlist', sub: 'Trailer e notizie salvati con ☆, solo su questo browser', keep: true },
 ];
 
 // ---------- markup delle voci ----------
-// data-src: fonte (+ fonti con la stessa notizia), data-it: voce italiana, data-t/sn/d: dati per la watchlist
+// data-src: fonte (+ fonti con la stessa notizia), data-it: voce italiana, data-u: link (per contare le voci una volta sola)
 const srcAttr = it => [it.src, ...(it.also || []).map(a => a.src)].map(slug).join(' ');
-const attrs = (it, cls) => `class="${cls}" data-src="${h(srcAttr(it))}"${it.lang === 'it' ? ' data-it' : ''}${isNew(it) ? ' data-new' : ''} data-t="${h(cleanTrailerTitle(it.title))}" data-sn="${h(it.src)}" data-d="${it.ts}" data-u="${h(it.link)}"`;
-const saveBtn = '<button type="button" class="save" aria-pressed="false" title="Salva nella watchlist">☆<span> salva</span></button>';
+const attrs = (it, cls) => `class="${cls}" data-src="${h(srcAttr(it))}"${it.lang === 'it' ? ' data-it' : ''}${isNew(it) ? ' data-new' : ''} data-t="${h(cleanTrailerTitle(it.title))}" data-u="${h(it.link)}"`;
 const alsoHtml = it => it.also?.length ? `<span class="also">anche su ${it.also.slice(0, 4).map(a => `<a href="${h(a.link)}" target="_blank" rel="noopener">${h(a.src)}</a>`).join(', ')}${it.also.length > 4 ? ` e altre ${it.also.length - 4}` : ''}</span>` : '';
 function row(it) {
   return `<li ${attrs(it, 'it')}>
-  <div class="meta"><span class="src">${h(it.src)}</span><span class="lang">${LANG[it.lang] || ''}</span>${it.video ? '<span class="lang">VIDEO</span>' : ''}<time>${h(fmt.format(it.ts))}</time>${isNew(it) ? '<span class="pill">nuovo</span>' : ''}${saveBtn}</div>
+  <div class="meta"><span class="src">${h(it.src)}</span><span class="lang">${LANG[it.lang] || ''}</span>${it.video ? '<span class="lang">VIDEO</span>' : ''}<time>${h(fmt.format(it.ts))}</time>${isNew(it) ? '<span class="pill">nuovo</span>' : ''}</div>
   <div class="body"><a class="t" href="${h(it.link)}" target="_blank" rel="noopener" title="${h(it.title)}">${h(it.title)}</a>${alsoHtml(it)}</div>
 </li>`;
 }
@@ -400,20 +429,29 @@ function card(it, images) {
     ? `<img src="https://i.ytimg.com/vi/${h(it.vid)}/hqdefault.jpg" alt="" loading="lazy" width="480" height="360">`
     : `<span class="ph" aria-hidden="true">▶</span>`;
   const t = cleanTrailerTitle(it.title);
-  return `<li ${attrs(it, 'card')}>${saveBtn}
+  return `<li ${attrs(it, 'card')}>
   <a href="${h(it.link)}" target="_blank" rel="noopener"><span class="thumb">${thumb}${isNew(it) ? '<span class="pill solid">nuovo</span>' : ''}</span>
   <span class="ct" title="${h(t)}">${h(t)}</span></a>
   <span class="cm"><b>${h(it.src)}</b> · ${LANG[it.lang]} · ${it.approx ? `<span title="data approssimativa">≈ ${h(fmtDay.format(it.ts))}</span>` : h(fmt.format(it.ts))}</span>
 </li>`;
 }
-const vrow = (it, images) => `<li ${attrs(it, 'vr')}>${saveBtn}
+const vrow = (it, images) => `<li ${attrs(it, 'vr')}>
   <a href="${h(it.link)}" target="_blank" rel="noopener"><span class="thumb">${images ? `<img src="https://i.ytimg.com/vi/${h(it.vid)}/mqdefault.jpg" alt="" loading="lazy" width="320" height="180">` : '<span class="ph" aria-hidden="true">▶</span>'}</span>
   <span><span class="vt" title="${h(it.title)}">${h(it.title)}</span><span class="cm"><b>${h(it.src)}</b> · ${h(fmt.format(it.ts))}${isNew(it) ? ' · <em>nuovo</em>' : ''}</span></span></a>
 </li>`;
 const calRow = c => `<li ${attrs({ ...c.it, title: c.film }, 'cal')} data-when="${c.when}">
   <span class="cd"><b>${h(fmtCal.format(c.when))}</b><span class="cdn" data-when="${c.when}">${countdown(c.when)}</span></span>
-  <span class="body"><a class="t" href="${h(c.it.link)}" target="_blank" rel="noopener" title="${h(c.film)}">${h(c.film)}</a><span class="cm">${h(c.it.src)} · trailer</span></span>${saveBtn}
+  <span class="body"><a class="t" href="${h(c.it.link)}" target="_blank" rel="noopener" title="${h(c.film)}">${h(c.film)}</a><span class="cm">${h(c.it.src)} · trailer</span></span>
 </li>`;
+// film in sala: titolo con link a MYmovies, sale e data d'uscita; "nuova uscita" se uscito negli ultimi 7 giorni
+function filmRow(f) {
+  const ts = f.uscita ? Date.parse(f.uscita + 'T12:00:00Z') : 0;
+  const fresh = ts && NOW - ts < 7 * 864e5 && ts <= NOW + 864e5;
+  return `<li class="it film" data-src="mymovies" data-it data-t="${h(f.title)}" data-u="${h(f.link)}">
+  <div class="meta"><span class="src">${f.sale} sale</span>${ts ? `<time>in sala dal ${h(fmtDay.format(ts))}</time>` : ''}${fresh ? '<span class="pill">nuova uscita</span>' : ''}</div>
+  <div class="body"><a class="t" href="${h(f.link)}" target="_blank" rel="noopener" title="${h(f.title)}">${h(f.title)}</a><span class="cm">${[f.regia && 'di ' + f.regia, f.genre, f.distr].filter(Boolean).map(h).join(' · ')}</span></div>
+</li>`;
+}
 const more = '<button type="button" class="more" hidden>Mostra tutto</button>';
 const list = (arr, lim = LIM) => arr.length ? `<ul class="list lim" data-lim="${lim}">${arr.map(row).join('')}</ul>${more}` : '<p class="empty">Niente di nuovo in questa finestra.</p>';
 const grid = (arr, images) => arr.length ? `<ul class="cards lim" data-lim="${LIM}">${arr.map(t => card(t, images)).join('')}</ul>${more}` : '<p class="empty">Nessun trailer in questa finestra.</p>';
@@ -428,6 +466,10 @@ function section(s, images) {
 <div id="t-cinema" class="tp">${grid(tCinema, images)}</div>
 <div id="t-stream" class="tp" hidden>${grid(tStream, images)}</div>
 <div id="t-press" class="tp" hidden>${list(tPress)}</div>`;
+  } else if (s.id === 'alcinema') {
+    inner = cinemaFilms.length ? `${alCinemaStale ? `<p class="note">MYmovies non ha risposto a questo giro: elenco del ${h(fmt.format(alCinema.at))}.</p>` : ''}<ul class="list films lim" data-lim="${LIM}">${cinemaFilms.map(filmRow).join('')}</ul>${more}
+<p class="note">Fonte: <a href="${MM_URL}" target="_blank" rel="noopener">MYmovies, Film al cinema</a> · numero di sale del giorno · aggiornato ${h(fmt.format(alCinema.at))}.</p>`
+      : '<p class="empty">Elenco dei film in sala non disponibile a questo giro.</p>';
   } else if (s.id === 'date') {
     const col = (title, arr) => `<div><h3>${title} <span class="n">${arr.length}</span></h3>${arr.length ? `<ul class="calendar lim" data-lim="${LIM}">${arr.map(calRow).join('')}</ul>${more}` : '<p class="empty">Nessuna data annunciata.</p>'}</div>`;
     inner = `<div class="cols">${col('Al cinema', calCinema)}${col('In streaming', calStream)}</div>
@@ -441,12 +483,6 @@ ${platData.map((p, i) => `<div id="p-${p.id}" class="tp"${i ? ' hidden' : ''}>
   <h3 class="sub">Notizie, uscite e rumor <span class="n">${p.news.length < p.allNews.length ? `${p.news.length} più recenti di ${p.allNews.length}` : p.news.length}</span></h3>
   ${list(p.news)}
 </div>`).join('\n')}` : '<p class="empty">Niente sulle piattaforme in questa finestra.</p>';
-  } else if (s.id === 'boxoffice') {
-    const rows = [1, 2, 3, 4, 5].map(n => `<tr><td>${n}</td><td class="tbd">da collegare</td><td>—</td><td>—</td><td>—</td></tr>`).join('');
-    inner = `<div class="tbd-box"><p><span class="badge">DA COLLEGARE</span> Le fonti attuali non pubblicano la classifica italiana con gli incassi: qui non compaiono numeri finché non si collega una fonte dati (per esempio Cinetel). Nessun valore è stimato.</p>
-<div class="tbl"><table><thead><tr><th>#</th><th>Film</th><th>Weekend</th><th>Var. sett. prec.</th><th>Totale</th></tr></thead><tbody>${rows}</tbody></table></div></div>
-<h3 class="sub">Box office italiano dalla stampa <span class="n">${boxIt.length}</span></h3>${boxIt.length ? list(boxIt) : '<p class="empty">Nessun articolo sul box office italiano nelle fonti di questa settimana.</p>'}
-${boxOther.length ? `<h3 class="sub">Altri mercati <span class="n">${boxOther.length}</span></h3>${list(boxOther)}` : ''}`;
   } else if (s.id === 'rumor') {
     inner = `<div class="cols rumor-cols">
   <div><h3>Video <span class="n">${rumorVideo.length}</span></h3>${rumorVideo.length ? `<ul class="vlist lim" data-lim="6">${rumorVideo.slice(0, 30).map(v => vrow(v, images)).join('')}</ul>${more}` : '<p class="empty">Nessun video questa settimana.</p>'}</div>
@@ -463,17 +499,15 @@ ${TRACK.map((t, i) => `<div id="k-${t.id}" class="tp"${i ? ' hidden' : ''}><div 
   } else if (s.id === 'festival') {
     inner = festCount ? `${tabs('fest', 'Festival', festData.map(f => ({ id: 'f-' + f.id, name: f.name, n: f.list.length })))}
 ${festData.map((f, i) => `<div id="f-${f.id}" class="tp"${i ? ' hidden' : ''}>${list(f.list)}</div>`).join('\n')}` : '<p class="empty">Nessuna voce su festival e premi in questo periodo.</p>';
-  } else if (s.id === 'watchlist') {
-    inner = `<p class="note" id="wl-note">Tocca ☆ su un trailer o una notizia per salvarlo qui.</p><ul class="list wl" id="wl-list"></ul>`;
   } else inner = list(s.list);
   return `<section id="${s.id}" class="sec"${s.keep ? ' data-keep' : ''}>
-<header class="sh"><h2>${h(s.title)}</h2><span class="count"${s.id === 'watchlist' ? ' id="wl-count"' : ''}>${count}</span><p>${h(s.sub)}</p></header>
+<header class="sh"><h2>${h(s.title)}</h2><span class="count">${count}</span><p>${h(s.sub)}</p></header>
 ${inner}
 </section>`;
 }
 
 const shown = [...trailers, ...tPress, ...rumor, ...SECTIONS.filter(s => s.list).flatMap(s => s.list), ...festData.flatMap(f => f.list)];
-const sources = [...new Set(shown.filter(i => isArticle(i)).flatMap(i => [i.src, ...(i.also || []).map(a => a.src)]))].sort((a, b) => a.localeCompare(b));
+const sources = [...new Set([...shown.filter(i => isArticle(i)).flatMap(i => [i.src, ...(i.also || []).map(a => a.src)]), ...(cinemaFilms.length ? ['MYmovies'] : [])])].sort((a, b) => a.localeCompare(b));
 const newCount = new Set(shown.filter(isNew).map(i => i.link)).size;
 const ok = status.filter(s => s.ok), failed = status.filter(s => !s.ok);
 
@@ -543,9 +577,6 @@ ul{list-style:none;margin:0;padding:0}
 .t:hover,.ct:hover,.vt:hover{text-decoration:underline;text-decoration-color:var(--accent);text-underline-offset:3px}
 .also{display:block;margin-top:4px;font:400 12px/1.5 var(--mono);color:var(--muted)}
 .also a{color:var(--accent)}
-.save{font:500 11px/1 var(--mono);color:var(--muted);background:transparent;border:1px solid var(--rule);border-radius:999px;padding:4px 8px;cursor:pointer}
-.save:hover{border-color:var(--ink);color:var(--ink)}
-.save[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
 .tabs{display:flex;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;gap:6px;margin:16px 0 14px;padding-bottom:2px}
 .tabs::-webkit-scrollbar{display:none}
 .tabs button{flex:none;white-space:nowrap;font:600 15px/1 var(--body);color:var(--ink);background:var(--chip);border:1px solid var(--rule);border-radius:999px;padding:9px 14px;cursor:pointer}
@@ -557,8 +588,8 @@ h3.sub{font:400 22px/1 var(--display);text-transform:uppercase;letter-spacing:.0
 .older{font:500 12px/1 var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:26px 0 12px;padding-top:14px;border-top:1px dashed var(--rule)}
 .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:22px 18px}
 .card,.vr{position:relative;min-width:0}
-.card .save,.vr .save{position:absolute;z-index:2;top:6px;right:6px;background:var(--paper)}
-.card .save span,.vr .save span{display:none}
+.films .it{grid-template-columns:150px minmax(0,1fr)}
+.films .meta .src{font-size:14px}
 .card a{text-decoration:none;display:grid;gap:8px}
 .thumb{position:relative;display:block;aspect-ratio:16/9;overflow:hidden;border-radius:6px;background:var(--card)}
 .thumb img{width:100%;height:100%;object-fit:cover}
@@ -580,27 +611,17 @@ h3.sub{font:400 22px/1 var(--display);text-transform:uppercase;letter-spacing:.0
 .n{font:500 12px/1 var(--mono);color:var(--accent)}
 .vr{border-bottom:1px solid var(--rule);padding:10px 0}
 .vr a{display:grid;grid-template-columns:132px minmax(0,1fr);gap:12px;text-decoration:none;align-items:start}
-.vr .save{top:14px;left:94px;right:auto}
 .vt{font-weight:600;font-size:15px;line-height:1.3}
-.cal{display:grid;grid-template-columns:118px minmax(0,1fr) auto;gap:4px 14px;align-items:start;padding:12px 0;border-bottom:1px solid var(--rule)}
+.cal{display:grid;grid-template-columns:118px minmax(0,1fr);gap:4px 14px;align-items:start;padding:12px 0;border-bottom:1px solid var(--rule)}
 .cd{display:grid;gap:2px;font:400 12px/1.3 var(--mono);color:var(--muted)}
 .cd b{font:500 14px/1.2 var(--mono);color:var(--ink);text-transform:capitalize}
 .cdn{color:var(--accent)}
 .cal .t{font-size:16px}
-.tbd-box{margin-top:16px;padding:14px 16px;border:2px dashed var(--warn);border-radius:8px}
-.tbd-box p{margin:0 0 12px;font-size:14px;color:var(--muted)}
-.badge{display:inline-block;font:500 11px/1.6 var(--mono);letter-spacing:.08em;color:#fff;background:var(--warn);border-radius:3px;padding:0 6px;margin-right:6px}
-.tbl{overflow-x:auto}
-table{width:100%;border-collapse:collapse;font:400 13px/1.4 var(--mono)}
-th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--rule);white-space:nowrap}
-th{color:var(--muted);font-weight:500}
-td.tbd{color:var(--warn);font-style:italic}
 .note,.empty{color:var(--muted);font-size:14px}
-.wl .wi{display:grid;grid-template-columns:180px minmax(0,1fr);gap:4px 20px;padding:14px 0;border-bottom:1px solid var(--rule)}
 footer{margin-top:56px;padding-top:14px;border-top:4px solid var(--ink);font:400 12px/1.6 var(--mono);color:var(--muted);overflow-wrap:anywhere}
 footer .ko{color:var(--hot)}
 @media (max-width:760px){
-  .list .it,.cols .list .it,.wl .wi{grid-template-columns:minmax(0,1fr)}
+  .list .it,.cols .list .it{grid-template-columns:minmax(0,1fr)}
   .meta .src{width:auto}
   .cols,.rumor-cols{grid-template-columns:minmax(0,1fr);gap:0}
   .cards{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:18px 12px}
@@ -610,7 +631,6 @@ footer .ko{color:var(--hot)}
   .filters{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin-inline:-16px;padding:2px 16px 6px}
   .filters::-webkit-scrollbar{display:none}
   .cal{grid-template-columns:92px minmax(0,1fr)}
-  .cal .save{grid-column:2;justify-self:start}
 }
 @media (prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
 </style>
@@ -620,7 +640,7 @@ footer .ko{color:var(--hot)}
   <h1>Fuori <span>Campo</span></h1>
   <p class="stats"><span>Aggiornato <b>${h(fmtLong.format(NOW))}</b></span><span><b>${trailers.length}</b> trailer</span><span><b>${rumor.length}</b> rumor</span><span><b>${newCount}</b> novità nelle ultime ${cfg.newHours} ore</span><span><b>${ok.length}</b>/${status.length} fonti raggiunte</span></p>
 </header>
-<nav class="toc" aria-label="Indice delle sezioni">${SECTIONS.map(s => `<a href="#${s.id}">${h(s.title)}${s.id === 'watchlist' ? ' <span id="wl-toc"></span>' : ''}</a>`).join('')}<a class="top" href="#top" aria-label="Torna su">↑ su</a></nav>
+<nav class="toc" aria-label="Indice delle sezioni">${SECTIONS.map(s => `<a href="#${s.id}">${h(s.title)}</a>`).join('')}<a class="top" href="#top" aria-label="Torna su">↑ su</a></nav>
 <div class="filters" role="group" aria-label="Filtri"><span>Mostra solo:</span><button type="button" id="f-onlynew" class="only" aria-pressed="false">solo nuovi</button><button type="button" id="f-onlyit" class="only" aria-pressed="false" title="Solo distributori, piattaforme e testate italiane">solo Italia</button><button type="button" id="f-all" class="reset" hidden>tutte le fonti</button><span class="sep" aria-hidden="true"></span>${sources.map(s => `<button type="button" data-src="${slug(s)}" aria-pressed="false">${h(s)}</button>`).join('')}</div>
 <p class="fnote" id="fnote" hidden></p>
 ${SECTIONS.map(s => section(s, images)).join('\n')}
@@ -663,7 +683,7 @@ ${SECTIONS.map(s => section(s, images)).join('\n')}
       var srcs=(li.dataset.src||'').split(' ');
       li.hidden=!!((picked.length&&!srcs.some(function(x){return sel[x]}))||(onlyNew&&!li.hasAttribute('data-new'))||(onlyIt&&!li.hasAttribute('data-it')));
     });
-    document.querySelectorAll('section.sec:not([data-keep])').forEach(function(sec){
+    document.querySelectorAll('section.sec').forEach(function(sec){
       var show=!filtering||[].some.call(sec.querySelectorAll(ITEMS),vis);
       sec.hidden=!show;
       var a=document.querySelector('nav.toc a[href="#'+sec.id+'"]'); if(a)a.hidden=!show;
@@ -692,43 +712,6 @@ ${SECTIONS.map(s => section(s, images)).join('\n')}
   all.addEventListener('click',function(){sel={};apply()});
   groups.forEach(function(g){g.querySelectorAll('button[data-tab]').forEach(function(b){b.addEventListener('click',function(){tabs[g.dataset.group]=b.dataset.tab;apply()})})});
   document.querySelectorAll('.more').forEach(function(b){b.addEventListener('click',function(){var ul=b.previousElementSibling;ul.classList.toggle('open');limit();if(!ul.classList.contains('open'))ul.scrollIntoView({block:'nearest'})})});
-
-  // ---- watchlist personale ----
-  var WK='fuoricampo-watchlist', wl=load(WK,[]); if(!Array.isArray(wl))wl=[];
-  var wlList=document.getElementById('wl-list'), wlNote=document.getElementById('wl-note'), wlCount=document.getElementById('wl-count'), wlToc=document.getElementById('wl-toc');
-  var fmtD=function(t){try{return new Date(+t).toLocaleDateString('it-IT',{day:'numeric',month:'short'})}catch(e){return ''}};
-  function saved(u){return wl.some(function(x){return x.u===u})}
-  function renderWl(){
-    wlCount.textContent=wl.length; wlToc.textContent=wl.length?'('+wl.length+')':'';
-    wlNote.textContent=(storageOk?'':'Il browser blocca la memoria locale: la watchlist vale solo finché resti su questa pagina. ')+(wl.length?'':'Tocca ☆ su un trailer o una notizia per salvarlo qui.');
-    wlNote.hidden=storageOk&&wl.length>0;
-    wlList.textContent='';
-    wl.forEach(function(x){
-      var li=document.createElement('li');li.className='wi';
-      var meta=document.createElement('div');meta.className='meta';
-      var s=document.createElement('span');s.className='src';s.textContent=x.sn;meta.appendChild(s);
-      var d=document.createElement('time');d.textContent=fmtD(x.d);meta.appendChild(d);
-      var rm=document.createElement('button');rm.type='button';rm.className='save';rm.setAttribute('aria-pressed','true');rm.textContent='★ togli';
-      rm.addEventListener('click',function(){toggle(x)});meta.appendChild(rm);
-      var body=document.createElement('div');body.className='body';
-      var a=document.createElement('a');a.className='t';a.href=x.u;a.target='_blank';a.rel='noopener';a.textContent=x.t;a.title=x.t;body.appendChild(a);
-      li.appendChild(meta);li.appendChild(body);wlList.appendChild(li);
-    });
-    document.querySelectorAll('[data-u] .save,[data-u]>.save').forEach(function(b){
-      var li=b.closest('[data-u]'), on=saved(li.dataset.u);
-      b.setAttribute('aria-pressed',on?'true':'false');b.title=on?'Togli dalla watchlist':'Salva nella watchlist';
-      b.firstChild.nodeValue=on?'★':'☆';
-    });
-  }
-  function toggle(x){
-    if(saved(x.u))wl=wl.filter(function(y){return y.u!==x.u});
-    else wl.unshift(x);
-    store(WK,wl);renderWl();
-  }
-  document.querySelectorAll('[data-u] .save,[data-u]>.save').forEach(function(b){
-    b.addEventListener('click',function(e){e.preventDefault();var li=b.closest('[data-u]');toggle({u:li.dataset.u,t:li.dataset.t,sn:li.dataset.sn,d:li.dataset.d})});
-  });
-  renderWl();
 
   // ---- countdown "Date da segnare": ricalcolato sul giorno di chi guarda ----
   var today=new Date();today=Date.UTC(today.getFullYear(),today.getMonth(),today.getDate());
@@ -766,4 +749,4 @@ const head = '<!doctype html>\n<html lang="it"><head><meta charset="utf-8"><meta
 await writeFile(join(DIR, 'fuori-campo.html'), head + page(true).replace('</style>', '</style></head><body>') + '</body></html>\n');
 await writeFile(join(DIR, 'artifact.html'), head + page(false).replace('</style>', '</style></head><body>') + '</body></html>\n');
 const count = s => items.filter(i => i.section === s).length;
-console.log(JSON.stringify({ archivio: kept.length, trailer: { cinema: tCinema.length, streaming: tStream.length, stampa: tPress.length }, date: { cinema: calCinema.length, streaming: calStream.length }, rumor: { video: rumorVideo.length, testo: rumorText.length }, tracker: TRACK.map(t => `${t.name}: ${t.ok.length} ok / ${t.rumor.length} rumor / ${t.altro.length} altro`), festival: festData.map(f => `${f.name}: ${f.list.length}`), box: { it: boxIt.length, altri: boxOther.length }, uscite: count('uscite'), notizie: count('notizie'), recensioni: count('recensioni'), approfondimenti: count('approfondimenti'), ko: failed }, null, 1));
+console.log(JSON.stringify({ archivio: kept.length, trailer: { cinema: tCinema.length, streaming: tStream.length, stampa: tPress.length }, date: { cinema: calCinema.length, streaming: calStream.length }, rumor: { video: rumorVideo.length, testo: rumorText.length }, tracker: TRACK.map(t => `${t.name}: ${t.ok.length} ok / ${t.rumor.length} rumor / ${t.altro.length} altro`), festival: festData.map(f => `${f.name}: ${f.list.length}`), alCinema: cinemaFilms.length + (alCinemaStale ? ' (elenco precedente)' : ''), uscite: count('uscite'), notizie: count('notizie'), recensioni: count('recensioni'), approfondimenti: count('approfondimenti'), ko: failed }, null, 1));
