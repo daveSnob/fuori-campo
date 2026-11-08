@@ -193,7 +193,7 @@ await Promise.all(cfg.youtubeTrailers.filter(c => c.platform && (haveT[c.platfor
 // ---------- archivio ----------
 // Le voci su festival/premi e sui casting seguiti (config: festival, tracker) restano in archivio più a lungo
 // (windows.focus, 30 giorni), ma compaiono solo nelle loro sezioni: nelle altre valgono le finestre normali.
-const FOCUS_RE = [...(cfg.tracker || []), ...(cfg.festival || [])].map(x => new RegExp(x.match, 'i'));
+const FOCUS_RE = (cfg.festival || []).map(x => new RegExp(x.match, 'i'));
 const isArticle = it => it.section !== 'trailer' && it.section !== 'trailer-arch';
 const isFocus = it => isArticle(it) && FOCUS_RE.some(r => r.test(it.title));
 const inWindow = it => NOW - it.ts < winFor(it.section);
@@ -389,24 +389,6 @@ const calCinema = calendar.filter(c => c.where === 'cinema');
 const calStream = calendar.filter(c => c.where === 'streaming');
 const countdown = when => { const d = Math.round((when - TODAY) / 864e5); return d <= 0 ? 'oggi' : d === 1 ? 'domani' : `tra ${d} giorni`; };
 
-// ---------- tracker casting: per ogni saga, voci confermate separate dai rumor ----------
-const CONFIRM_RE = /\b(cast as|joins|has joined|set to (star|play|direct|lead)|will (play|star)|lands?( the)? role|officially|confirm(ed|s)?|announce[sd]?|tapped to (play|star|direct)|is the new|named as|ufficiale|ufficialmente|confermat[oaie]|annunciat[oaie]|entra nel cast)\b/i;
-const TRACK = (cfg.tracker || []).map(t => {
-  const keywords = t.keywords?.length ? t.keywords.join('|') : t.match;
-  const re = new RegExp(keywords, 'i');
-  const excludes = t.exclude?.length ? new RegExp(t.exclude.join('|'), 'i') : null;
-  const list = arts.filter(a => re.test(a.title) && (!excludes || !excludes.test(a.title))).sort((x, y) => y.ts - x.ts);
-  const st = a => (a.section === 'rumor' || a.video || isRumor(a.title)) ? 'rumor' : CONFIRM_RE.test(a.title) ? 'ok' : 'altro';
-  return { ...t, type: t.type || 'casting', id: slug(t.name), ok: list.filter(a => st(a) === 'ok'), rumor: list.filter(a => st(a) === 'rumor'), altro: list.filter(a => st(a) === 'altro'), n: list.length };
-}).filter(t => t.n);
-
-const TRACK_GROUPS = [...new Set(TRACK.map(t => t.type))].map(type => ({
-  type,
-  name: (cfg.trackerTypes || []).find(x => x.id === type)?.name || type,
-  items: TRACK.filter(t => t.type === type),
-  n: TRACK.filter(t => t.type === type).reduce((sum, t) => sum + t.n, 0),
-}));
-
 const cinemaFilms = (alCinema?.films || []).slice().sort((a, b) => b.sale - a.sale);
 const SECTIONS = [
   { id: 'trailer', title: 'Trailer della settimana', sub: 'Trailer e teaser ufficiali degli ultimi 7 giorni, dai canali di studi, distributori italiani e piattaforme', count: trailers.length },
@@ -498,15 +480,6 @@ ${platData.map((p, i) => `<div id="p-${p.id}" class="tp"${i ? ' hidden' : ''}>
   <div><h3>Scoop e indiscrezioni <span class="n">${rumorText.length}</span></h3>${list(rumorText)}</div>
 </div>
 <p class="note">I rumor sono per definizione non confermati: la voce è riportata così come la presenta la fonte.</p>`;
-  } else if (s.id === 'casting') {
-    inner = TRACK_GROUPS.length ? `${tabs('tracker-type', 'Categoria', TRACK_GROUPS.map(g => ({ id: 'g-' + slug(g.type), name: g.name, n: g.n })))}
-${TRACK_GROUPS.map((g, gi) => `<div id="g-${slug(g.type)}" class="tp"${gi ? ' hidden' : ''}>
-${tabs('tracker-' + slug(g.type), g.name, g.items.map(t => ({ id: 'k-' + t.id, name: t.name, n: t.n })))}
-${g.items.map((t, i) => `<div id="k-${t.id}" class="tp"${i ? ' hidden' : ''}><div class="cols track">
-  <div class="st-ok"><h3>Confermato <span class="n">${t.ok.length}</span></h3>${t.ok.length ? list(t.ok, 6) : '<p class="empty">Nessuna notizia ufficiale in questo periodo.</p>'}</div>
-  <div class="st-rumor"><h3>Rumor non confermati <span class="n">${t.rumor.length}</span></h3>${t.rumor.length ? list(t.rumor, 6) : '<p class="empty">Nessun rumor in questo periodo.</p>'}</div>
-</div>${t.altro.length ? `<h3 class="sub">Altre notizie sulla saga <span class="n">${t.altro.length}</span></h3>${list(t.altro, 4)}` : ''}</div>`).join('\n')}</div>`).join('\n')}
-<p class="note">Le categorie e le parole chiave sono configurate in config.json. «Confermato» indica formule ufficiali nel titolo e non marcate come rumor.</p>` : '<p class="empty">Nessuna voce nei tracker configurati.</p>';
   } else if (s.id === 'festival') {
     inner = festCount ? `${tabs('fest', 'Festival', festData.map(f => ({ id: 'f-' + f.id, name: f.name, n: f.list.length })))}
 ${festData.map((f, i) => `<div id="f-${f.id}" class="tp"${i ? ' hidden' : ''}>${list(f.list)}</div>`).join('\n')}` : '<p class="empty">Nessuna voce su festival e premi in questo periodo.</p>';
