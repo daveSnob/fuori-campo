@@ -397,7 +397,6 @@ const SECTIONS = [
   { id: 'piattaforme', title: 'Piattaforme', sub: 'Una scheda per servizio: trailer delle novità e notizie, uscite e rumor. Nelle schede: ▶ trailer · notizie. Il numero accanto al titolo conta i trailer', count: platCount },
   { id: 'uscite', title: 'In sala e in streaming', sub: 'Guide alle uscite della settimana: cinema e piattaforme', list: pick('uscite', M.uscite) },
   { id: 'rumor', title: 'Rumor', sub: 'Indiscrezioni, trattative, casting non confermati. Video di John Campea e Grace Randolph, scoop di World of Reel e The InSneider', count: rumor.length },
-  { id: 'casting', title: 'Tracker', sub: `Aggiornamenti organizzati per categoria, ultimi ${Math.round((cfg.windows.focus ?? 720) / 24)} giorni`, count: TRACK.reduce((n, t) => n + t.n, 0) },
   { id: 'notizie', title: 'Notizie', sub: 'Casting, produzioni, box office, industria · ultime 48 ore', list: notFest('notizie').slice(0, M.notizie) },
   { id: 'festival', title: 'Festival e premi', sub: `Torino Film Festival, Oscar, AFM · ultimi ${Math.round((cfg.windows.focus ?? 720) / 24)} giorni`, count: festCount },
   { id: 'recensioni', title: 'Recensioni', sub: 'Critica dai trade e dalle riviste · ultimi 7 giorni', list: pick('recensioni', M.recensioni) },
