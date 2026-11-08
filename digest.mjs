@@ -499,14 +499,14 @@ ${platData.map((p, i) => `<div id="p-${p.id}" class="tp"${i ? ' hidden' : ''}>
 </div>
 <p class="note">I rumor sono per definizione non confermati: la voce è riportata così come la presenta la fonte.</p>`;
   } else if (s.id === 'casting') {
-    inner = TRACK_GROUPS.length ? \`$tabs('tracker-type', 'Categoria', TRACK_GROUPS.map(g => ({ id: 'g-' + slug(g.type), name: g.name, n: g.n })))}
-$TRACK_GROUPS.map((g, gi) => \`<div id="g-$slug(g.type)}" class="tp"$gi ? ' hidden' : ''}>
-$tabs('tracker-' + slug(g.type), g.name, g.items.map(t => ({ id: 'k-' + t.id, name: t.name, n: t.n })))}
-$g.items.map((t, i) => \`<div id="k-$t.id}" class="tp"$i ? ' hidden' : ''}><div class="cols track">
-  <div class="st-ok"><h3>Confermato <span class="n">$t.ok.length}</span></h3>$t.ok.length ? list(t.ok, 6) : '<p class="empty">Nessuna notizia ufficiale in questo periodo.</p>'}</div>
-  <div class="st-rumor"><h3>Rumor non confermati <span class="n">$t.rumor.length}</span></h3>$t.rumor.length ? list(t.rumor, 6) : '<p class="empty">Nessun rumor in questo periodo.</p>'}</div>
-</div>$t.altro.length ? \`<h3 class="sub">Altre notizie sulla saga <span class="n">$t.altro.length}</span></h3>$list(t.altro, 4)}\` : ''}</div>\`).join('\n')}</div>\`).join('\n')}
-<p class="note">Le categorie e le parole chiave sono configurate in config.json. «Confermato» indica formule ufficiali nel titolo e non marcate come rumor.</p>\` : '<p class="empty">Nessuna voce nei tracker configurati.</p>';
+    inner = TRACK_GROUPS.length ? `${tabs('tracker-type', 'Categoria', TRACK_GROUPS.map(g => ({ id: 'g-' + slug(g.type), name: g.name, n: g.n })))}
+${TRACK_GROUPS.map((g, gi) => `<div id="g-${slug(g.type)}" class="tp"${gi ? ' hidden' : ''}>
+${tabs('tracker-' + slug(g.type), g.name, g.items.map(t => ({ id: 'k-' + t.id, name: t.name, n: t.n })))}
+${g.items.map((t, i) => `<div id="k-${t.id}" class="tp"${i ? ' hidden' : ''}><div class="cols track">
+  <div class="st-ok"><h3>Confermato <span class="n">${t.ok.length}</span></h3>${t.ok.length ? list(t.ok, 6) : '<p class="empty">Nessuna notizia ufficiale in questo periodo.</p>'}</div>
+  <div class="st-rumor"><h3>Rumor non confermati <span class="n">${t.rumor.length}</span></h3>${t.rumor.length ? list(t.rumor, 6) : '<p class="empty">Nessun rumor in questo periodo.</p>'}</div>
+</div>${t.altro.length ? `<h3 class="sub">Altre notizie sulla saga <span class="n">${t.altro.length}</span></h3>${list(t.altro, 4)}` : ''}</div>`).join('\n')}</div>`).join('\n')}
+<p class="note">Le categorie e le parole chiave sono configurate in config.json. «Confermato» indica formule ufficiali nel titolo e non marcate come rumor.</p>` : '<p class="empty">Nessuna voce nei tracker configurati.</p>';
   } else if (s.id === 'festival') {
     inner = festCount ? `${tabs('fest', 'Festival', festData.map(f => ({ id: 'f-' + f.id, name: f.name, n: f.list.length })))}
 ${festData.map((f, i) => `<div id="f-${f.id}" class="tp"${i ? ' hidden' : ''}>${list(f.list)}</div>`).join('\n')}` : '<p class="empty">Nessuna voce su festival e premi in questo periodo.</p>';
