@@ -2,11 +2,11 @@ name: Orologio (aggiornamento ogni ora)
 
 # Perché esiste: le esecuzioni "schedule" di GitHub sono best effort. Sotto carico vengono ritardate o saltate,
 # e quelle orarie più spesso di tutte: con il solo cron "17 * * * *" di digest.yml partivano 4 aggiornamenti al giorno.
-# Questo workflow parte ogni 6 ore e resta acceso: ogni ora avvia "Aggiorna Fuori Campo" con workflow_dispatch,
+# Questo workflow parte ogni 3 ore e resta acceso: ogni ora avvia "Aggiorna Fuori Campo" con workflow_dispatch,
 # che GitHub esegue sempre (è l'unico evento che il GITHUB_TOKEN può far partire). Il cron di digest.yml resta come riserva.
 on:
   schedule:
-    - cron: "41 */6 * * *"
+    - cron: "41 */3 * * *"   # ogni 3 ore: ogni giro dura ~5 ore e sostituisce il precedente, così i ritardi di GitHub non lasciano buchi
   workflow_dispatch:
 
 permissions:
