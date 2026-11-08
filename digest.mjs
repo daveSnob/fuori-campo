@@ -392,11 +392,20 @@ const countdown = when => { const d = Math.round((when - TODAY) / 864e5); return
 // ---------- tracker casting: per ogni saga, voci confermate separate dai rumor ----------
 const CONFIRM_RE = /\b(cast as|joins|has joined|set to (star|play|direct|lead)|will (play|star)|lands?( the)? role|officially|confirm(ed|s)?|announce[sd]?|tapped to (play|star|direct)|is the new|named as|ufficiale|ufficialmente|confermat[oaie]|annunciat[oaie]|entra nel cast)\b/i;
 const TRACK = (cfg.tracker || []).map(t => {
-  const re = new RegExp(t.match, 'i');
-  const list = arts.filter(a => re.test(a.title)).sort((x, y) => y.ts - x.ts);
+  const keywords = t.keywords?.length ? t.keywords.join('|') : t.match;
+  const re = new RegExp(keywords, 'i');
+  const excludes = t.exclude?.length ? new RegExp(t.exclude.join('|'), 'i') : null;
+  const list = arts.filter(a => re.test(a.title) && (!excludes || !excludes.test(a.title))).sort((x, y) => y.ts - x.ts);
   const st = a => (a.section === 'rumor' || a.video || isRumor(a.title)) ? 'rumor' : CONFIRM_RE.test(a.title) ? 'ok' : 'altro';
-  return { ...t, id: slug(t.name), ok: list.filter(a => st(a) === 'ok'), rumor: list.filter(a => st(a) === 'rumor'), altro: list.filter(a => st(a) === 'altro'), n: list.length };
+  return { ...t, type: t.type || 'casting', id: slug(t.name), ok: list.filter(a => st(a) === 'ok'), rumor: list.filter(a => st(a) === 'rumor'), altro: list.filter(a => st(a) === 'altro'), n: list.length };
 }).filter(t => t.n);
+
+const TRACK_GROUPS = [...new Set(TRACK.map(t => t.type))].map(type => ({
+  type,
+  name: (cfg.trackerTypes || []).find(x => x.id === type)?.name || type,
+  items: TRACK.filter(t => t.type === type),
+  n: TRACK.filter(t => t.type === type).reduce((sum, t) => sum + t.n, 0),
+}));
 
 const cinemaFilms = (alCinema?.films || []).slice().sort((a, b) => b.sale - a.sale);
 const SECTIONS = [
@@ -406,7 +415,7 @@ const SECTIONS = [
   { id: 'piattaforme', title: 'Piattaforme', sub: 'Una scheda per servizio: trailer delle novità e notizie, uscite e rumor. Nelle schede: ▶ trailer · notizie. Il numero accanto al titolo conta i trailer', count: platCount },
   { id: 'uscite', title: 'In sala e in streaming', sub: 'Guide alle uscite della settimana: cinema e piattaforme', list: pick('uscite', M.uscite) },
   { id: 'rumor', title: 'Rumor', sub: 'Indiscrezioni, trattative, casting non confermati. Video di John Campea e Grace Randolph, scoop di World of Reel e The InSneider', count: rumor.length },
-  { id: 'casting', title: 'Tracker casting', sub: `Le voci ricorrenti, saga per saga, ultimi ${Math.round((cfg.windows.focus ?? 720) / 24)} giorni: confermato e rumor tenuti separati`, count: TRACK.reduce((n, t) => n + t.n, 0) },
+  { id: 'casting', title: 'Tracker', sub: `Aggiornamenti organizzati per categoria, ultimi ${Math.round((cfg.windows.focus ?? 720) / 24)} giorni`, count: TRACK.reduce((n, t) => n + t.n, 0) },
   { id: 'notizie', title: 'Notizie', sub: 'Casting, produzioni, box office, industria · ultime 48 ore', list: notFest('notizie').slice(0, M.notizie) },
   { id: 'festival', title: 'Festival e premi', sub: `Torino Film Festival, Oscar, AFM · ultimi ${Math.round((cfg.windows.focus ?? 720) / 24)} giorni`, count: festCount },
   { id: 'recensioni', title: 'Recensioni', sub: 'Critica dai trade e dalle riviste · ultimi 7 giorni', list: pick('recensioni', M.recensioni) },
@@ -490,12 +499,14 @@ ${platData.map((p, i) => `<div id="p-${p.id}" class="tp"${i ? ' hidden' : ''}>
 </div>
 <p class="note">I rumor sono per definizione non confermati: la voce è riportata così come la presenta la fonte.</p>`;
   } else if (s.id === 'casting') {
-    inner = TRACK.length ? `${tabs('casting', 'Saga', TRACK.map(t => ({ id: 'k-' + t.id, name: t.name, n: t.n })))}
-${TRACK.map((t, i) => `<div id="k-${t.id}" class="tp"${i ? ' hidden' : ''}><div class="cols track">
-  <div class="st-ok"><h3>Confermato <span class="n">${t.ok.length}</span></h3>${t.ok.length ? list(t.ok, 6) : '<p class="empty">Nessuna notizia ufficiale in questo periodo.</p>'}</div>
-  <div class="st-rumor"><h3>Rumor non confermati <span class="n">${t.rumor.length}</span></h3>${t.rumor.length ? list(t.rumor, 6) : '<p class="empty">Nessun rumor in questo periodo.</p>'}</div>
-</div>${t.altro.length ? `<h3 class="sub">Altre notizie sulla saga <span class="n">${t.altro.length}</span></h3>${list(t.altro, 4)}` : ''}</div>`).join('\n')}
-<p class="note">«Confermato» = titolo con formule ufficiali (annuncia, conferma, entra nel cast…) e non marcato come rumor. Saghe seguite e parole chiave in config.json (tracker).</p>` : '<p class="empty">Nessuna voce sulle saghe seguite.</p>';
+    inner = TRACK_GROUPS.length ? \`$tabs('tracker-type', 'Categoria', TRACK_GROUPS.map(g => ({ id: 'g-' + slug(g.type), name: g.name, n: g.n })))}
+$TRACK_GROUPS.map((g, gi) => \`<div id="g-$slug(g.type)}" class="tp"$gi ? ' hidden' : ''}>
+$tabs('tracker-' + slug(g.type), g.name, g.items.map(t => ({ id: 'k-' + t.id, name: t.name, n: t.n })))}
+$g.items.map((t, i) => \`<div id="k-$t.id}" class="tp"$i ? ' hidden' : ''}><div class="cols track">
+  <div class="st-ok"><h3>Confermato <span class="n">$t.ok.length}</span></h3>$t.ok.length ? list(t.ok, 6) : '<p class="empty">Nessuna notizia ufficiale in questo periodo.</p>'}</div>
+  <div class="st-rumor"><h3>Rumor non confermati <span class="n">$t.rumor.length}</span></h3>$t.rumor.length ? list(t.rumor, 6) : '<p class="empty">Nessun rumor in questo periodo.</p>'}</div>
+</div>$t.altro.length ? \`<h3 class="sub">Altre notizie sulla saga <span class="n">$t.altro.length}</span></h3>$list(t.altro, 4)}\` : ''}</div>\`).join('\n')}</div>\`).join('\n')}
+<p class="note">Le categorie e le parole chiave sono configurate in config.json. «Confermato» indica formule ufficiali nel titolo e non marcate come rumor.</p>\` : '<p class="empty">Nessuna voce nei tracker configurati.</p>';
   } else if (s.id === 'festival') {
     inner = festCount ? `${tabs('fest', 'Festival', festData.map(f => ({ id: 'f-' + f.id, name: f.name, n: f.list.length })))}
 ${festData.map((f, i) => `<div id="f-${f.id}" class="tp"${i ? ' hidden' : ''}>${list(f.list)}</div>`).join('\n')}` : '<p class="empty">Nessuna voce su festival e premi in questo periodo.</p>';
