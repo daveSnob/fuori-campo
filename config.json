@@ -559,29 +559,5 @@
       "name": "AFM",
       "match": "\\bafm\\b|american film market"
     }
-  ],
-  "trackerTypes": [
-    { "id": "casting", "name": "Casting" },
-    { "id": "franchise", "name": "Franchise" },
-    { "id": "attori", "name": "Attori" },
-    { "id": "registi", "name": "Registi" },
-    { "id": "produzioni", "name": "Produzioni" }
-  ],
-  "tracker": [
-    {
-      "name": "James Bond",
-      "type": "casting",
-      "match": "james bond|\\b007\\b|\\bbond (26|rumou?rs?|casting|actor|film|movie|role)\\b|next bond|nuovo bond"
-    },
-    {
-      "name": "X-Men",
-      "type": "casting",
-      "match": "x-men|\\bmutant[si]?\\b"
-    },
-    {
-      "name": "The Batman",
-      "type": "casting",
-      "match": "the batman|batman part ii|\\bbatman\\b"
-    }
   ]
 }
