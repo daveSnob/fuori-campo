@@ -9,7 +9,6 @@ Digest cinema personale, aggiornato ogni ora. Per ogni voce: titolo, fonte, data
 - **Piattaforme**: una scheda per servizio con i trailer delle novità (almeno `minTrailerPiattaforma`) e le notizie che lo riguardano.
 - **In sala e in streaming**: guide alle uscite della settimana.
 - **Rumor**: video di John Campea e Grace Randolph, scoop di World of Reel e The InSneider, trattative dai trade.
-- **Tracker casting**: per le saghe in `tracker` (James Bond, X-Men, The Batman) le voci confermate separate dai rumor, ultimi 30 giorni.
 - **Notizie, Recensioni, Approfondimenti**.
 - **Festival e premi**: Torino Film Festival, Oscar, AFM (`festival` in config.json), ultimi 30 giorni.
 
