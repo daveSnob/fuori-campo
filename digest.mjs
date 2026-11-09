@@ -150,6 +150,8 @@ await Promise.all([
 // ---------- archivio: i feed mostrano solo le ultime 10-20 voci, quindi si conserva quanto visto nei giri precedenti ----------
 let archive = [];
 try { archive = JSON.parse(await readFile(ARCHIVE, 'utf8')).items || []; } catch {}
+const disabledSources = new Set(cfg.disabledSources || []);
+archive = archive.filter(it => !disabledSources.has(it.src));
 // i trailer restano in archivio più a lungo (trailerArchivio) per riempire le schede delle piattaforme con poche novità
 const winFor = s => (s === 'trailer' || s === 'trailer-arch' ?cfg.windows.trailerArchivio ?? cfg.windows.trailer : cfg.windows[s] ?? cfg.windows[s.replace('-stampa', '')] ?? 48) * H;
 const byLink = new Map();
