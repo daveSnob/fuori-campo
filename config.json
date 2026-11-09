@@ -485,6 +485,7 @@
     }
   ],
   "blockWords": [],
+  "disabledSources": ["Nexo Studios"],
   "platforms": [
     {
       "id": "netflix",
