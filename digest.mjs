@@ -51,7 +51,9 @@ function parseFeed(xml) {
       .concat([...b.matchAll(/<category[^>]*term="([^"]+)"/gi)].map(m => decode(m[1])));
     const date = tag(b, 'pubDate') || tag(b, 'dc:date') || tag(b, 'published') || tag(b, 'updated');
     const rawDesc = tag(b, 'description') || tag(b, 'media:description') || tag(b, 'summary') || tag(b, 'content:encoded') || tag(b, 'content');
-    const image = decode((b.match(/<enclosure[^>]+url=["']([^"']+)["'][^>]*type=["']image\//i) || b.match(/<(?:media:content|media:thumbnail)[^>]+url=["']([^"']+)["']/i) || rawDesc.match(/<img[^>]+src=["']([^"']+)["']/i) || [])[1] || '');
+    let image = decode((b.match(/<enclosure[^>]+url=["']([^"']+)["'][^>]*type=["']image\//i) || b.match(/<(?:media:content|media:thumbnail)[^>]+url=["']([^"']+)["']/i) || rawDesc.match(/<img[^>]+src=["']([^"']+)["']/i) || [])[1] || '');
+    const ytImage = image.match(/youtube\.com\/(?:embed|shorts)\/([\w-]{11})/i);
+    if (ytImage) image = `https://i.ytimg.com/vi/${ytImage[1]}/hqdefault.jpg`;
     return { title: text(tag(b, 'title')), link: decode(link.trim()), cats, ts: Date.parse(date) || 0, rawDesc, image: /^https?:\/\//i.test(image) ? image : '', vid: tag(b, 'yt:videoId') };
   });
 }
