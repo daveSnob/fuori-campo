@@ -572,6 +572,8 @@ nav.toc a{flex:none;white-space:nowrap;font:600 14px/1 var(--body);text-decorati
 nav.toc a:hover{border-color:var(--ink)}
 nav.toc a[aria-current="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
 nav.toc a.top{font-family:var(--mono);font-weight:500;background:transparent}
+nav.toc .theme-toggle{flex:none;white-space:nowrap;font:600 14px/1 var(--body);color:var(--ink);padding:8px 12px;border:1px solid var(--rule);border-radius:999px;background:var(--chip);cursor:pointer}
+nav.toc .theme-toggle:hover{border-color:var(--ink)}
 .sec,.mast{scroll-margin-top:64px}
 .filters{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:10px 0 0;font:400 12px/1 var(--mono);color:var(--muted)}
 .filters>*{flex:none}
@@ -688,7 +690,7 @@ footer .ko{color:var(--hot)}
   <p class="stats"><span>Aggiornato <b>${h(fmtLong.format(NOW))}</b></span><span><b>${trailers.length}</b> trailer</span><span><b>${rumor.length}</b> rumor</span><span><b>${newCount}</b> novità nelle ultime ${cfg.newHours} ore</span><span><b>${ok.length}</b>/${status.length} fonti raggiunte</span></p>
 </header>
 ${tickerHtml}
-<nav class="toc" aria-label="Indice delle sezioni">${SECTIONS.map(s => `<a href="#${s.id}">${h(s.title)}</a>`).join('')}<a class="top" href="#top" aria-label="Torna su">↑ su</a></nav>
+<nav class="toc" aria-label="Indice delle sezioni"><button type="button" class="theme-toggle" id="theme-toggle" aria-pressed="false">Tema scuro</button>${SECTIONS.map(s => `<a href="#${s.id}">${h(s.title)}</a>`).join('')}<a class="top" href="#top" aria-label="Torna su">↑ su</a></nav>
 <div class="filters" role="group" aria-label="Filtri"><span>Mostra solo:</span><button type="button" id="f-onlynew" class="only" aria-pressed="false">solo nuovi</button><button type="button" id="f-onlyit" class="only" aria-pressed="false" title="Solo distributori, piattaforme e testate italiane">solo Italia</button><button type="button" id="f-all" class="reset" hidden>tutte le fonti</button><span class="sep" aria-hidden="true"></span>${sources.map(s => `<button type="button" data-src="${slug(s)}" aria-pressed="false">${h(s)}</button>`).join('')}</div>
 <p class="fnote" id="fnote" hidden></p>
 ${SECTIONS.map(s => section(s, images)).join('\n')}
@@ -705,6 +707,18 @@ ${SECTIONS.map(s => section(s, images)).join('\n')}
   var storageOk=true;
   function load(k,def){try{var v=localStorage.getItem(k);return v?JSON.parse(v):def}catch(e){storageOk=false;return def}}
   function store(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){storageOk=false}}
+
+  // tema: preferenza esplicita salvata localmente, altrimenti tema del sistema
+  var themeButton=document.getElementById('theme-toggle'), themeKey='fuoricampo-theme';
+  function setTheme(theme,save){
+    document.documentElement.dataset.theme=theme;
+    themeButton.setAttribute('aria-pressed',theme==='dark'?'true':'false');
+    themeButton.textContent=theme==='dark'?'Tema chiaro':'Tema scuro';
+    if(save)try{localStorage.setItem(themeKey,theme)}catch(e){}
+  }
+  var savedTheme=''; try{savedTheme=localStorage.getItem(themeKey)||''}catch(e){}
+  setTheme(savedTheme||((window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light'),false);
+  themeButton.addEventListener('click',function(){setTheme(document.documentElement.dataset.theme==='dark'?'light':'dark',true)});
 
   // ---- filtri: fonti scelte (vuoto = tutte), solo nuovi, solo Italia ----
   var KEY='fuoricampo-filters', ITEMS='.it,.vr,.card,.cal', st=load(KEY,{});
