@@ -51,7 +51,8 @@ function parseFeed(xml) {
       .concat([...b.matchAll(/<category[^>]*term="([^"]+)"/gi)].map(m => decode(m[1])));
     const date = tag(b, 'pubDate') || tag(b, 'dc:date') || tag(b, 'published') || tag(b, 'updated');
     const rawDesc = tag(b, 'description') || tag(b, 'media:description') || tag(b, 'summary') || tag(b, 'content:encoded') || tag(b, 'content');
-    return { title: text(tag(b, 'title')), link: decode(link.trim()), cats, ts: Date.parse(date) || 0, rawDesc, vid: tag(b, 'yt:videoId') };
+    const image = decode((b.match(/<enclosure[^>]+url=["']([^"']+)["'][^>]*type=["']image\//i) || b.match(/<(?:media:content|media:thumbnail)[^>]+url=["']([^"']+)["']/i) || rawDesc.match(/<img[^>]+src=["']([^"']+)["']/i) || [])[1] || '');
+    return { title: text(tag(b, 'title')), link: decode(link.trim()), cats, ts: Date.parse(date) || 0, rawDesc, image: /^https?:\/\//i.test(image) ? image : '', vid: tag(b, 'yt:videoId') };
   });
 }
 
@@ -109,7 +110,7 @@ async function collectFeed(feed) {
         if (blockRe && blockRe.test(it.title)) continue;
         // fonti da "solo rumor": entrano solo le voci con formule da indiscrezione, il resto è contenuto da fan
         if (feed.onlyRumor && !isRumor(it.title)) continue;
-        fresh.push({ src: feed.name, lang: feed.lang, section: feed.onlyRumor ? 'rumor' : classify(it, feed), title: it.title, link: it.link, ts: it.ts || NOW, ex: excerpt(it.rawDesc, it.title) });
+        fresh.push({ src: feed.name, lang: feed.lang, section: feed.onlyRumor ? 'rumor' : classify(it, feed), title: it.title, link: it.link, ts: it.ts || NOW, ex: excerpt(it.rawDesc, it.title), image: it.image });
         n++;
       }
       if (!parsed.length) break;
@@ -306,6 +307,29 @@ const allTrailers = dedupeTrailers(kept.filter(it => !isArticle(it)));
 const items = [...allTrailers, ...arts.filter(inWindow)].sort((a, b) => b.ts - a.ts);
 const pick = (s, max) => items.filter(i => i.section === s).slice(0, max ?? 999);
 
+// ---------- notizia del giorno: cluster rigoroso di almeno tre fonti ----------
+const newsStop = new Set('the a an and or of to in on for from with is are was were has have this that new news film movie cinema series season trailer teaser official announces announced announce share shares shared video tour festival dates date show shows live song songs release releases released la il lo i gli le un una e di del della dei delle su per con da che nuovo nuova nuovi nuove annuncia annunciato annunciano pubblica pubblicato torna tornano aprile maggio giugno luglio agosto settembre ottobre novembre dicembre'.split(' '));
+const newsTokens = title => [...new Set(norm(title).split(' ').filter(w => w.length >= 4 && !newsStop.has(w)))];
+const newsItems = arts.filter(i => i.section === 'notizie' && !i.fest);
+const newsClusters = [];
+for (const item of newsItems) {
+  const toks = new Set(newsTokens(item.title));
+  let cluster = newsClusters.find(c => [...c.common].filter(t => toks.has(t)).length >= 3);
+  if (!cluster) { cluster = { items: [], common: new Set(toks) }; newsClusters.push(cluster); }
+  cluster.items.push(item);
+  cluster.common = new Set([...cluster.common].filter(t => toks.has(t)));
+}
+const newsDayCluster = newsClusters
+  .map(c => ({ ...c, sources: [...new Set(c.items.map(i => i.src))], latest: Math.max(...c.items.map(i => i.ts || 0)) }))
+  .filter(c => c.sources.length >= 3)
+  .sort((a, b) => b.sources.length - a.sources.length || b.latest - a.latest)[0] || null;
+const newsLead = newsDayCluster ? newsDayCluster.items.slice().sort((a, b) => (b.ts || 0) - (a.ts || 0))[0] : null;
+const newsDay = newsDayCluster ? {
+  title: newsLead.title, image: newsLead.image || '', latest: newsDayCluster.latest,
+  sources: newsDayCluster.sources,
+  sourceItems: [...new Map(newsDayCluster.items.map(i => [i.src, i])).values()]
+} : null;
+
 // ---------- formati ----------
 const h = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const fmt = new Intl.DateTimeFormat('it-IT', { timeZone: 'Europe/Rome', weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -393,6 +417,7 @@ const countdown = when => { const d = Math.round((when - TODAY) / 864e5); return
 
 const cinemaFilms = (alCinema?.films || []).slice().sort((a, b) => b.sale - a.sale);
 const SECTIONS = [
+  ...(newsDay ? [{ id: 'notizia-del-giorno', title: 'Notizia del giorno', sub: 'Un tema riportato da almeno tre fonti indipendenti', count: 1 }] : []),
   { id: 'trailer', title: 'Trailer della settimana', sub: 'Trailer e teaser ufficiali degli ultimi 7 giorni, dai canali di studi, distributori italiani e piattaforme', count: trailers.length },
   { id: 'alcinema', title: 'Al cinema', sub: 'I film in sala in Italia questa settimana secondo MYmovies, dal più programmato', count: cinemaFilms.length },
   { id: 'date', title: 'Date da segnare', sub: 'Uscite italiane annunciate nei trailer dei distributori e delle piattaforme, in ordine di data', count: calendar.length },
@@ -453,7 +478,17 @@ ${entries.map((e, i) => `  <button type="button" role="tab" data-tab="${e.id}" a
 
 function section(s, images) {
   let inner, count = s.count ?? s.list?.length ?? 0;
-  if (s.id === 'trailer') {
+  if (s.id === 'notizia-del-giorno') {
+    inner = `<article class="news-aotd">
+  <a class="news-aotd-cover" href="${h(newsLead.link)}" target="_blank" rel="noopener">${newsDay.image && images ? `<img src="${h(newsDay.image)}" alt="Immagine della notizia: ${h(newsDay.title)}" loading="eager">` : '<span class="news-ph" aria-hidden="true">NEWS</span>'}</a>
+  <div class="news-aotd-body">
+    <span class="editorial-label">${newsDay.sources.length} fonti · ${h(fmtDay.format(newsDay.latest))}</span>
+    <h3><a href="${h(newsLead.link)}" target="_blank" rel="noopener">${h(newsDay.title)}</a></h3>
+    <p>La stessa notizia è stata individuata in articoli pubblicati da ${h(newsDay.sources.join(' · '))}.</p>
+    <div class="news-source-links">${newsDay.sourceItems.map(i => `<a href="${h(i.link)}" target="_blank" rel="noopener">${h(i.src)}</a>`).join(' · ')}</div>
+  </div>
+</article>`;
+  } else if (s.id === 'trailer') {
     inner = `${tabs('trailer', 'Dove esce', [{ id: 't-cinema', name: 'Al cinema', n: tCinema.length }, { id: 't-stream', name: 'In streaming', n: tStream.length }, { id: 't-press', name: 'Dalla stampa', n: tPress.length }])}
 <div id="t-cinema" class="tp">${grid(tCinema, images)}</div>
 <div id="t-stream" class="tp" hidden>${grid(tStream, images)}</div>
@@ -603,6 +638,19 @@ h3.sub{font:400 22px/1 var(--display);text-transform:uppercase;letter-spacing:.0
 .cdn{color:var(--accent)}
 .cal .t{font-size:16px}
 .note,.empty{color:var(--muted);font-size:14px}
+.news-aotd{display:grid;grid-template-columns:minmax(0,320px) 1fr;gap:20px 28px;align-items:start;margin-top:16px}
+.news-aotd-cover{display:block;aspect-ratio:1/1;border-radius:6px;overflow:hidden;background:var(--card)}
+.news-aotd-cover img{width:100%;height:100%;object-fit:cover}
+.news-ph{height:100%;display:grid;place-items:center;color:var(--accent);font:400 56px/1 var(--display)}
+.news-aotd-body{min-width:0;display:grid;gap:10px}
+.news-aotd h3{margin:0;font:400 clamp(36px,6vw,56px)/.95 var(--display);text-transform:uppercase;overflow-wrap:anywhere}
+.news-aotd h3 a{text-decoration:none}
+.news-aotd h3 a:hover{text-decoration:underline;text-decoration-color:var(--accent);text-underline-offset:4px}
+.news-aotd p{margin:0;color:var(--ink);font-size:16px}
+.editorial-label{display:block;font:500 12px/1.4 var(--mono);letter-spacing:.05em;text-transform:uppercase;color:var(--accent)}
+.news-source-links{font:500 13px/1.5 var(--mono);color:var(--accent)}
+.news-source-links a{text-decoration:none}
+.news-source-links a:hover{text-decoration:underline;text-underline-offset:3px}
 footer{margin-top:56px;padding-top:14px;border-top:4px solid var(--ink);font:400 12px/1.6 var(--mono);color:var(--muted);overflow-wrap:anywhere}
 footer .ko{color:var(--hot)}
 @media (max-width:760px){
@@ -616,6 +664,7 @@ footer .ko{color:var(--hot)}
   .filters{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin-inline:-16px;padding:2px 16px 6px}
   .filters::-webkit-scrollbar{display:none}
   .cal{grid-template-columns:92px minmax(0,1fr)}
+  .news-aotd{grid-template-columns:minmax(0,1fr)}
 }
 @media (prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
 </style>
