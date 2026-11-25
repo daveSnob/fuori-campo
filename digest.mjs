@@ -576,6 +576,12 @@ nav.toc .theme-toggle{flex:none;white-space:nowrap;font:600 14px/1 var(--body);c
 nav.toc .theme-toggle:hover{border-color:var(--ink)}
 .sec,.mast{scroll-margin-top:64px}
 .filters{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:10px 0 0;font:400 12px/1 var(--mono);color:var(--muted)}
+.filters-panel{margin-top:10px}
+.filters-panel>summary{display:inline-flex;align-items:center;gap:7px;cursor:pointer;list-style:none;font:600 13px/1 var(--mono);color:var(--ink);background:var(--chip);border:1px solid var(--rule);border-radius:999px;padding:8px 12px}
+.filters-panel>summary::-webkit-details-marker{display:none}
+.filters-panel>summary::after{content:'+';font-size:16px;line-height:.7;color:var(--accent)}
+.filters-panel[open]>summary::after{content:'−'}
+.filters-panel[open] .filters{margin-top:10px}
 .filters>*{flex:none}
 .filters button{font:500 12px/1 var(--mono);color:var(--ink);background:transparent;border:1px solid var(--rule);border-radius:4px;padding:6px 8px;cursor:pointer;white-space:nowrap}
 /* filtro "mostra solo": le testate selezionate sono piene; con nessuna selezionata si vede tutto */
@@ -691,7 +697,10 @@ footer .ko{color:var(--hot)}
 </header>
 ${tickerHtml}
 <nav class="toc" aria-label="Indice delle sezioni"><button type="button" class="theme-toggle" id="theme-toggle" aria-pressed="false">Tema scuro</button>${SECTIONS.map(s => `<a href="#${s.id}">${h(s.title)}</a>`).join('')}<a class="top" href="#top" aria-label="Torna su">↑ su</a></nav>
-<div class="filters" role="group" aria-label="Filtri"><span>Mostra solo:</span><button type="button" id="f-onlynew" class="only" aria-pressed="false">solo nuovi</button><button type="button" id="f-onlyit" class="only" aria-pressed="false" title="Solo distributori, piattaforme e testate italiane">solo Italia</button><button type="button" id="f-all" class="reset" hidden>tutte le fonti</button><span class="sep" aria-hidden="true"></span>${sources.map(s => `<button type="button" data-src="${slug(s)}" aria-pressed="false">${h(s)}</button>`).join('')}</div>
+<details class="filters-panel">
+  <summary>Mostra solo: filtri fonti</summary>
+  <div class="filters" role="group" aria-label="Filtri"><button type="button" id="f-onlynew" class="only" aria-pressed="false">solo nuovi</button><button type="button" id="f-onlyit" class="only" aria-pressed="false" title="Solo distributori, piattaforme e testate italiane">solo Italia</button><button type="button" id="f-all" class="reset" hidden>tutte le fonti</button><span class="sep" aria-hidden="true"></span>${sources.map(s => `<button type="button" data-src="${slug(s)}" aria-pressed="false">${h(s)}</button>`).join('')}</div>
+</details>
 <p class="fnote" id="fnote" hidden></p>
 ${SECTIONS.map(s => section(s, images)).join('\n')}
 <footer>
