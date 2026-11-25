@@ -355,6 +355,9 @@ const festMoves = new Set(['notizie', 'approfondimenti']);
 const festData = FEST.map(f => ({ ...f, list: arts.filter(a => a.fest === f.id).sort((x, y) => y.ts - x.ts).slice(0, 40) }));
 const festCount = festData.reduce((n, f) => n + f.list.length, 0);
 const notFest = s => items.filter(i => i.section === s && !(festMoves.has(s) && i.fest));
+const tickerNews = notFest('notizie').slice(0, 15);
+const tickerOne = tickerNews.map(i => `<a href="${h(i.link)}" target="_blank" rel="noopener">${h(i.title)}</a>`).join('');
+const tickerHtml = tickerNews.length ? `<div class="ticker" aria-label="Ultime notizie"><a class="tk-label" href="#notizie">Notizie</a><div class="ticker-clip"><div class="ticker-track">${tickerOne}<span aria-hidden="true">${tickerOne}</span></div></div></div>` : '';
 
 const rumor = pick('rumor', M.rumor);
 const rumorVideo = rumor.filter(r => r.video);
@@ -579,6 +582,14 @@ nav.toc a.top{font-family:var(--mono);font-weight:500;background:transparent}
 .filters .sep{width:1px;height:20px;background:var(--rule)}
 .fnote{margin:14px 0 0;font:400 13px/1.4 var(--mono);color:var(--muted)}
 .sec{margin-top:48px}
+.ticker{display:flex;align-items:stretch;margin:14px -16px 0;background:var(--ink);color:var(--paper);font:600 13px/1 var(--body)}
+.ticker .tk-label{flex:none;display:grid;place-items:center;padding:0 12px;background:var(--hot);color:#fff;text-decoration:none;font:700 12px/1 var(--mono);text-transform:uppercase;letter-spacing:.06em}
+.ticker-clip{flex:1;min-width:0;overflow:hidden}
+.ticker-track{display:flex;width:max-content;padding:11px 0;white-space:nowrap;animation:tick 90s linear infinite}
+.ticker-track a{color:inherit;text-decoration:none;padding-right:36px}
+.ticker-track a::before{content:"•";color:var(--hot);margin-right:10px}
+.ticker:hover .ticker-track,.ticker:focus-within .ticker-track{animation-play-state:paused}
+@keyframes tick{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 .sh{display:grid;grid-template-columns:auto auto 1fr;align-items:baseline;gap:4px 12px;border-bottom:1px solid var(--ink);padding-bottom:8px}
 .sh h2{font:400 42px/1 var(--display);text-transform:uppercase;margin:0;text-wrap:balance}
 .sh .count{font:500 14px/1 var(--mono);color:var(--accent)}
@@ -674,6 +685,7 @@ footer .ko{color:var(--hot)}
   <h1>Fuori <span>Campo</span></h1>
   <p class="stats"><span>Aggiornato <b>${h(fmtLong.format(NOW))}</b></span><span><b>${trailers.length}</b> trailer</span><span><b>${rumor.length}</b> rumor</span><span><b>${newCount}</b> novità nelle ultime ${cfg.newHours} ore</span><span><b>${ok.length}</b>/${status.length} fonti raggiunte</span></p>
 </header>
+${tickerHtml}
 <nav class="toc" aria-label="Indice delle sezioni">${SECTIONS.map(s => `<a href="#${s.id}">${h(s.title)}</a>`).join('')}<a class="top" href="#top" aria-label="Torna su">↑ su</a></nav>
 <div class="filters" role="group" aria-label="Filtri"><span>Mostra solo:</span><button type="button" id="f-onlynew" class="only" aria-pressed="false">solo nuovi</button><button type="button" id="f-onlyit" class="only" aria-pressed="false" title="Solo distributori, piattaforme e testate italiane">solo Italia</button><button type="button" id="f-all" class="reset" hidden>tutte le fonti</button><span class="sep" aria-hidden="true"></span>${sources.map(s => `<button type="button" data-src="${slug(s)}" aria-pressed="false">${h(s)}</button>`).join('')}</div>
 <p class="fnote" id="fnote" hidden></p>
