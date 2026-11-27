@@ -321,16 +321,20 @@ for (const item of newsItems) {
   cluster.items.push(item);
   cluster.common = new Set([...cluster.common].filter(t => toks.has(t)));
 }
-const newsDayCluster = newsClusters
+const qualifyingNewsClusters = newsClusters
   .map(c => ({ ...c, sources: [...new Set(c.items.map(i => i.src))], latest: Math.max(...c.items.map(i => i.ts || 0)) }))
   .filter(c => c.sources.length >= 3)
-  .sort((a, b) => b.sources.length - a.sources.length || b.latest - a.latest)[0] || null;
-const newsLead = newsDayCluster ? newsDayCluster.items.slice().sort((a, b) => (b.ts || 0) - (a.ts || 0))[0] : null;
-const newsDay = newsDayCluster ? {
-  title: newsLead.title, image: newsLead.image || '', latest: newsDayCluster.latest,
-  sources: newsDayCluster.sources,
-  sourceItems: [...new Map(newsDayCluster.items.map(i => [i.src, i])).values()]
-} : null;
+  .sort((a, b) => b.sources.length - a.sources.length || b.latest - a.latest)
+  .slice(0, 3)
+  .map(cluster => {
+    const lead = cluster.items.slice().sort((a, b) => (b.ts || 0) - (a.ts || 0))[0];
+    return {
+      title: lead.title, image: lead.image || '', link: lead.link, latest: cluster.latest,
+      sources: cluster.sources,
+      sourceItems: [...new Map(cluster.items.map(i => [i.src, i])).values()]
+    };
+  });
+const newsDay = qualifyingNewsClusters[0] || null;
 
 // ---------- formati ----------
 const h = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -422,7 +426,7 @@ const countdown = when => { const d = Math.round((when - TODAY) / 864e5); return
 
 const cinemaFilms = (alCinema?.films || []).slice().sort((a, b) => b.sale - a.sale);
 const SECTIONS = [
-  ...(newsDay ? [{ id: 'notizia-del-giorno', title: 'Notizia del giorno', sub: 'Un tema riportato da almeno tre fonti indipendenti', count: 1 }] : []),
+  ...(newsDay ? [{ id: 'notizia-del-giorno', title: 'Notizia del giorno', sub: 'Fino a tre temi riportati da almeno tre fonti indipendenti', count: qualifyingNewsClusters.length }] : []),
   { id: 'trailer', title: 'Trailer della settimana', sub: 'Trailer e teaser ufficiali degli ultimi 7 giorni, dai canali di studi, distributori italiani e piattaforme', count: trailers.length },
   { id: 'alcinema', title: 'Al cinema', sub: 'I film in sala in Italia questa settimana secondo MYmovies, dal più programmato', count: cinemaFilms.length },
   { id: 'date', title: 'Date da segnare', sub: 'Uscite italiane annunciate nei trailer dei distributori e delle piattaforme, in ordine di data', count: calendar.length },
@@ -484,15 +488,20 @@ ${entries.map((e, i) => `  <button type="button" role="tab" data-tab="${e.id}" a
 function section(s, images) {
   let inner, count = s.count ?? s.list?.length ?? 0;
   if (s.id === 'notizia-del-giorno') {
-    inner = `<article class="news-aotd">
-  <a class="news-aotd-cover" href="${h(newsLead.link)}" target="_blank" rel="noopener">${newsDay.image && images ? `<img src="${h(newsDay.image)}" alt="Immagine della notizia: ${h(newsDay.title)}" loading="eager">` : '<span class="news-ph" aria-hidden="true">NEWS</span>'}</a>
+    const [lead, ...secondary] = qualifyingNewsClusters;
+    const newsCard = (item, main) => main ? `<article class="news-aotd">
+  <a class="news-aotd-cover" href="${h(item.link)}" target="_blank" rel="noopener">${item.image && images ? `<img src="${h(item.image)}" alt="Immagine della notizia: ${h(item.title)}" loading="eager">` : '<span class="news-ph" aria-hidden="true">NEWS</span>'}</a>
   <div class="news-aotd-body">
-    <span class="editorial-label">${newsDay.sources.length} fonti · ${h(fmtDay.format(newsDay.latest))}</span>
-    <h3><a href="${h(newsLead.link)}" target="_blank" rel="noopener">${h(newsDay.title)}</a></h3>
-    <p>La stessa notizia è stata individuata in articoli pubblicati da ${h(newsDay.sources.join(' · '))}.</p>
-    <div class="news-source-links">${newsDay.sourceItems.map(i => `<a href="${h(i.link)}" target="_blank" rel="noopener">${h(i.src)}</a>`).join(' · ')}</div>
+    <span class="editorial-label">${item.sources.length} fonti · ${h(fmtDay.format(item.latest))}</span>
+    <h3><a href="${h(item.link)}" target="_blank" rel="noopener">${h(item.title)}</a></h3>
+    <p>La stessa notizia è stata individuata in articoli pubblicati da ${h(item.sources.join(' · '))}.</p>
+    <div class="news-source-links">${item.sourceItems.map(i => `<a href="${h(i.link)}" target="_blank" rel="noopener">${h(i.src)}</a>`).join(' · ')}</div>
   </div>
+</article>` : `<article class="news-aotd-secondary">
+  <div><span class="editorial-label">${item.sources.length} fonti · ${h(fmtDay.format(item.latest))}</span><h3><a href="${h(item.link)}" target="_blank" rel="noopener">${h(item.title)}</a></h3></div>
+  <div class="news-source-links">${item.sourceItems.map(i => `<a href="${h(i.link)}" target="_blank" rel="noopener">${h(i.src)}</a>`).join(' · ')}</div>
 </article>`;
+    inner = newsCard(lead, true) + (secondary.length ? `<div class="news-aotd-secondary-list">${secondary.map(item => newsCard(item, false)).join('')}</div>` : '');
   } else if (s.id === 'trailer') {
     inner = `${tabs('trailer', 'Dove esce', [{ id: 't-cinema', name: 'Al cinema', n: tCinema.length }, { id: 't-stream', name: 'In streaming', n: tStream.length }, { id: 't-press', name: 'Dalla stampa', n: tPress.length }])}
 <div id="t-cinema" class="tp">${grid(tCinema, images)}</div>
@@ -672,6 +681,11 @@ h3.sub{font:400 22px/1 var(--display);text-transform:uppercase;letter-spacing:.0
 .news-source-links{font:500 13px/1.5 var(--mono);color:var(--accent)}
 .news-source-links a{text-decoration:none}
 .news-source-links a:hover{text-decoration:underline;text-underline-offset:3px}
+.news-aotd-secondary-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 28px;margin-top:22px}
+.news-aotd-secondary{display:grid;gap:8px;border-top:1px solid var(--ink);padding-top:12px;min-width:0}
+.news-aotd-secondary h3{margin:5px 0 0;font:700 21px/1.12 var(--body);text-transform:none;overflow-wrap:anywhere}
+.news-aotd-secondary h3 a{text-decoration:none}
+.news-aotd-secondary h3 a:hover{text-decoration:underline;text-decoration-color:var(--accent);text-underline-offset:3px}
 footer{margin-top:56px;padding-top:14px;border-top:4px solid var(--ink);font:400 12px/1.6 var(--mono);color:var(--muted);overflow-wrap:anywhere}
 footer .ko{color:var(--hot)}
 @media (max-width:760px){
@@ -686,6 +700,7 @@ footer .ko{color:var(--hot)}
   .filters::-webkit-scrollbar{display:none}
   .cal{grid-template-columns:92px minmax(0,1fr)}
   .news-aotd{grid-template-columns:minmax(0,1fr)}
+  .news-aotd-secondary-list{grid-template-columns:minmax(0,1fr);gap:16px}
 }
 @media (prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
 </style>
