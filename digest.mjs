@@ -831,7 +831,7 @@ ${SECTIONS.map(s => section(s, images)).join('\n')}
 `;
 }
 
-const head = '<!doctype html>\n<html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">\n';
+const head = `<!doctype html>\n<html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%23141414'/%3E%3Cpath d='M10 44 27 10h10L54 44H43l-4-9H25l-4 9H10zm19-18h6l-3-8-3 8z' fill='%23ff534d'/%3E%3C/svg%3E">\n`;
 await writeFile(join(DIR, 'fuori-campo.html'), head + page(true).replace('</style>', '</style></head><body>') + '</body></html>\n');
 await writeFile(join(DIR, 'artifact.html'), head + page(false).replace('</style>', '</style></head><body>') + '</body></html>\n');
 const count = s => items.filter(i => i.section === s).length;
