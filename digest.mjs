@@ -338,6 +338,7 @@ const newsDay = qualifyingNewsClusters[0] || null;
 
 // ---------- formati ----------
 const h = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const shareBtn = (url, title) => `<button type="button" class="share-btn" data-share-url="${h(url)}" data-share-title="${h(title)}">Condividi</button>`;
 const fmt = new Intl.DateTimeFormat('it-IT', { timeZone: 'Europe/Rome', weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 const fmtDay = new Intl.DateTimeFormat('it-IT', { timeZone: 'Europe/Rome', day: 'numeric', month: 'short' });
 const fmtCal = new Intl.DateTimeFormat('it-IT', { timeZone: 'Europe/Rome', weekday: 'short', day: 'numeric', month: 'short' });
@@ -447,22 +448,22 @@ const alsoHtml = it => it.also?.length ? `<span class="also">anche su ${it.also.
 function row(it) {
   return `<li ${attrs(it, 'it')}>
   <div class="meta"><span class="src">${h(it.src)}</span><span class="lang">${LANG[it.lang] || ''}</span>${it.video ? '<span class="lang">VIDEO</span>' : ''}<time>${h(fmt.format(it.ts))}</time>${isNew(it) ? '<span class="pill">nuovo</span>' : ''}</div>
-  <div class="body"><a class="t" href="${h(it.link)}" target="_blank" rel="noopener" title="${h(it.title)}">${h(it.title)}</a>${alsoHtml(it)}</div>
+  <div class="body"><a class="t" href="${h(it.link)}" target="_blank" rel="noopener" title="${h(it.title)}">${h(it.title)}</a>${alsoHtml(it)}${shareBtn(it.link, it.title)}</div>
 </li>`;
 }
 function card(it, images) {
   const thumb = images
-    ? `<img src="https://i.ytimg.com/vi/${h(it.vid)}/hqdefault.jpg" alt="" loading="lazy" width="480" height="360">`
+    ? `<img src="https://i.ytimg.com/vi/${h(it.vid)}/hqdefault.jpg" onerror="this.hidden=true;this.parentNode.classList.add('img-failed')" alt="" loading="lazy" width="480" height="360">`
     : `<span class="ph" aria-hidden="true">▶</span>`;
   const t = cleanTrailerTitle(it.title);
   return `<li ${attrs(it, 'card')}>
   <a href="${h(it.link)}" target="_blank" rel="noopener"><span class="thumb">${thumb}${isNew(it) ? '<span class="pill solid">nuovo</span>' : ''}</span>
   <span class="ct" title="${h(t)}">${h(t)}</span></a>
-  <span class="cm"><b>${h(it.src)}</b> · ${LANG[it.lang]} · ${it.approx ? `<span title="data approssimativa">≈ ${h(fmtDay.format(it.ts))}</span>` : h(fmt.format(it.ts))}</span>
+  <span class="cm"><b>${h(it.src)}</b> · ${LANG[it.lang]} · ${it.approx ? `<span title="data approssimativa">≈ ${h(fmtDay.format(it.ts))}</span>` : h(fmt.format(it.ts))}</span>${shareBtn(it.link, t)}
 </li>`;
 }
 const vrow = (it, images) => `<li ${attrs(it, 'vr')}>
-  <a href="${h(it.link)}" target="_blank" rel="noopener"><span class="thumb">${images ? `<img src="https://i.ytimg.com/vi/${h(it.vid)}/mqdefault.jpg" alt="" loading="lazy" width="320" height="180">` : '<span class="ph" aria-hidden="true">▶</span>'}</span>
+  <a href="${h(it.link)}" target="_blank" rel="noopener"><span class="thumb">${images ? `<img src="https://i.ytimg.com/vi/${h(it.vid)}/mqdefault.jpg" onerror="this.hidden=true;this.parentNode.classList.add('img-failed')" alt="" loading="lazy" width="320" height="180">` : '<span class="ph" aria-hidden="true">▶</span>'}</span>
   <span><span class="vt" title="${h(it.title)}">${h(it.title)}</span><span class="cm"><b>${h(it.src)}</b> · ${h(fmt.format(it.ts))}${isNew(it) ? ' · <em>nuovo</em>' : ''}</span></span></a>
 </li>`;
 const calRow = c => `<li ${attrs({ ...c.it, title: c.film }, 'cal')} data-when="${c.when}">
@@ -490,16 +491,16 @@ function section(s, images) {
   if (s.id === 'notizia-del-giorno') {
     const [lead, ...secondary] = qualifyingNewsClusters;
     const newsCard = (item, main) => main ? `<article class="news-aotd">
-  <a class="news-aotd-cover" href="${h(item.link)}" target="_blank" rel="noopener">${item.image && images ? `<img src="${h(item.image)}" alt="Immagine della notizia: ${h(item.title)}" loading="eager">` : '<span class="news-ph" aria-hidden="true">NEWS</span>'}</a>
+  <a class="news-aotd-cover" href="${h(item.link)}" target="_blank" rel="noopener">${item.image && images ? `<img src="${h(item.image)}" onerror="this.hidden=true;this.parentNode.classList.add('img-failed')" alt="Immagine della notizia: ${h(item.title)}" loading="eager">` : '<span class="news-ph" aria-hidden="true">NEWS</span>'}</a>
   <div class="news-aotd-body">
     <span class="editorial-label">${item.sources.length} fonti · ${h(fmtDay.format(item.latest))}</span>
     <h3><a href="${h(item.link)}" target="_blank" rel="noopener">${h(item.title)}</a></h3>
     <p>La stessa notizia è stata individuata in articoli pubblicati da ${h(item.sources.join(' · '))}.</p>
-    <div class="news-source-links">${item.sourceItems.map(i => `<a href="${h(i.link)}" target="_blank" rel="noopener">${h(i.src)}</a>`).join(' · ')}</div>
+    <div class="news-source-links">${item.sourceItems.map(i => `<a href="${h(i.link)}" target="_blank" rel="noopener">${h(i.src)}</a>`).join(' · ')}</div>${shareBtn(item.link, item.title)}
   </div>
 </article>` : `<article class="news-aotd-secondary">
   <div><span class="editorial-label">${item.sources.length} fonti · ${h(fmtDay.format(item.latest))}</span><h3><a href="${h(item.link)}" target="_blank" rel="noopener">${h(item.title)}</a></h3></div>
-  <div class="news-source-links">${item.sourceItems.map(i => `<a href="${h(i.link)}" target="_blank" rel="noopener">${h(i.src)}</a>`).join(' · ')}</div>
+  <div class="news-source-links">${item.sourceItems.map(i => `<a href="${h(i.link)}" target="_blank" rel="noopener">${h(i.src)}</a>`).join(' · ')}${shareBtn(item.link, item.title)}</div>
 </article>`;
     inner = newsCard(lead, true) + (secondary.length ? `<div class="news-aotd-secondary-list">${secondary.map(item => newsCard(item, false)).join('')}</div>` : '');
   } else if (s.id === 'trailer') {
@@ -681,6 +682,8 @@ h3.sub{font:400 22px/1 var(--display);text-transform:uppercase;letter-spacing:.0
 .news-source-links{font:500 13px/1.5 var(--mono);color:var(--accent)}
 .news-source-links a{text-decoration:none}
 .news-source-links a:hover{text-decoration:underline;text-underline-offset:3px}
+.img-failed{background:var(--chip)}.img-failed::after{content:'Immagine non disponibile';display:grid;place-items:center;height:100%;min-height:80px;font:500 11px/1.2 var(--mono);color:var(--muted);text-align:center;padding:8px;box-sizing:border-box}
+.share-btn{font:600 12px/1 var(--mono);color:var(--accent);background:transparent;border:1px solid var(--rule);border-radius:999px;padding:7px 10px;cursor:pointer;width:max-content}.share-btn:hover{background:var(--chip);border-color:var(--ink)}
 .news-aotd-secondary-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 28px;margin-top:22px}
 .news-aotd-secondary{display:grid;gap:8px;border-top:1px solid var(--ink);padding-top:12px;min-width:0}
 .news-aotd-secondary h3{margin:5px 0 0;font:700 21px/1.12 var(--body);text-transform:none;overflow-wrap:anywhere}
@@ -727,6 +730,7 @@ ${SECTIONS.map(s => section(s, images)).join('\n')}
 </div>
 <script>
 (function(){
+  document.querySelectorAll('.share-btn').forEach(function(b){b.addEventListener('click',async function(){var u=b.dataset.shareUrl,t=b.dataset.shareTitle||document.title;try{if(navigator.share)await navigator.share({title:t,url:u});else{await navigator.clipboard.writeText(u);var old=b.textContent;b.textContent='Link copiato';setTimeout(function(){b.textContent=old},1600)}}catch(e){}})});
   // localStorage può essere bloccato dal browser: ogni lettura e scrittura passa da qui
   var storageOk=true;
   function load(k,def){try{var v=localStorage.getItem(k);return v?JSON.parse(v):def}catch(e){storageOk=false;return def}}
